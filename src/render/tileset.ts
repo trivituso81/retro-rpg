@@ -116,20 +116,20 @@ function blit(
 }
 
 /**
- * Bake mountain tiles that read as peaked ranges (come to a head),
- * not flat grey rock slabs. Variants shift the peak so neighbors don't stamp.
+ * Bake peaked mountain *overlays* (transparent outside the silhouette)
+ * so the rest of the tile can show the same grass as plains tiles.
  */
 function bakeMountains(_sheet: HTMLImageElement): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
-  // 0–3 mountain, 4–7 peak (snow tip). Each is a full peaked silhouette.
+  // 0–3 mountain, 4–7 peak (snow tip).
   canvas.width = TILE_SIZE * 8;
   canvas.height = TILE_SIZE;
-  const ctx = canvas.getContext('2d', { alpha: false });
+  const ctx = canvas.getContext('2d', { alpha: true });
   if (!ctx) throw new Error('mountain bake failed');
   ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const COL = {
-    skyGap: '#5a7d45', // matches grass so gaps between peaks blend into plains
     dark: '#4a4558',
     mid: '#6a6578',
     light: '#8a8498',
@@ -144,20 +144,10 @@ function bakeMountains(_sheet: HTMLImageElement): HTMLCanvasElement {
     const snow = v >= 4;
     const peakX = 7 + (v % 4) - 1; // 6..9
     const peakY = snow ? 1 : 2;
-
-    // Fill with grass-tint so non-mountain pixels don't read as grey slabs
-    ctx.fillStyle = COL.skyGap;
-    ctx.fillRect(x0, 0, TILE_SIZE, TILE_SIZE);
-
-    // Secondary shoulder peak for range feel
     const shoulderX = peakX + (v % 2 === 0 ? -5 : 5);
     const shoulderY = 6;
 
-    const drawPeak = (
-      px: number,
-      py: number,
-      halfBase: number,
-    ): void => {
+    const drawPeak = (px: number, py: number, halfBase: number): void => {
       for (let y = py; y < TILE_SIZE; y++) {
         const t = (y - py) / Math.max(1, TILE_SIZE - 1 - py);
         const half = Math.max(1, Math.floor(halfBase * t));
@@ -170,7 +160,6 @@ function bakeMountains(_sheet: HTMLImageElement): HTMLCanvasElement {
           if (!onLeft && (x + y) % 3 === 0) c = COL.dark;
           if (onLeft && (x * 2 + y) % 5 === 0) c = COL.hilite;
           if (edge) c = COL.outline;
-          // Base scree
           if (y > 12 && (x + y + v) % 4 === 0) c = COL.dark;
           ctx.fillStyle = c;
           ctx.fillRect(x0 + x, y, 1, 1);
@@ -181,18 +170,17 @@ function bakeMountains(_sheet: HTMLImageElement): HTMLCanvasElement {
     drawPeak(shoulderX, shoulderY, 5);
     drawPeak(peakX, peakY, 8);
 
-    // Apex outline
     ctx.fillStyle = COL.outline;
     ctx.fillRect(x0 + peakX, peakY, 1, 1);
 
     if (snow) {
-      // Snow cap coming to the head of the peak
       for (let y = peakY; y <= peakY + 4; y++) {
         const half = y - peakY;
         for (let x = peakX - half; x <= peakX + half; x++) {
           if (x < 0 || x >= TILE_SIZE) continue;
           const edge = x === peakX - half || x === peakX + half;
-          ctx.fillStyle = edge ? COL.snowShade : y === peakY ? COL.snow : COL.snowShade;
+          ctx.fillStyle =
+            edge || y > peakY + 1 ? COL.snowShade : COL.snow;
           ctx.fillRect(x0 + x, y, 1, 1);
         }
       }
@@ -282,6 +270,9 @@ export function createTileset(): Promise<Tileset> {
         }
 
         case TileId.Mountain:
+          // Same grass base as plains, mountain icon on top — blends at the edges.
+          blit(ctx, image, GRASS[v]!, dx, dy);
+          dust(ctx, dx, dy, tileX * 13 + tileY * 7, '#4a6a38', '#9aba58', 0.09);
           ctx.drawImage(
             mountains,
             v * TILE_SIZE,
@@ -296,6 +287,8 @@ export function createTileset(): Promise<Tileset> {
           break;
 
         case TileId.Peak:
+          blit(ctx, image, GRASS[v]!, dx, dy);
+          dust(ctx, dx, dy, tileX * 13 + tileY * 7, '#4a6a38', '#9aba58', 0.09);
           ctx.drawImage(
             mountains,
             (4 + v) * TILE_SIZE,

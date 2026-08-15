@@ -16,10 +16,15 @@ import {
   TileId,
   type TileIdValue,
 } from '../config';
+import {
+  bakeLandmarks,
+  type LandmarkSprites,
+} from '../world/landmarks';
 import type { WorldMap } from '../world/map';
 
 export type Tileset = {
   image: HTMLImageElement;
+  landmarks: LandmarkSprites;
   ready: boolean;
   tick(nowMs: number): void;
   drawTile(
@@ -87,9 +92,6 @@ const TREES: Src[] = [
   { tx: 1, ty: 26 },
   { tx: 2, ty: 26 },
 ];
-
-const HOUSE: Src = { tx: 7, ty: 27 };
-const CASTLE: Src = { tx: 12, ty: 26 };
 
 function variant(tileX: number, tileY: number, mod: number): number {
   return Math.abs(tileX * 3 + tileY * 5) % mod;
@@ -230,9 +232,14 @@ export function createTileset(): Promise<Tileset> {
   let oceanFrame = 0;
   let ready = false;
   let mountains: HTMLCanvasElement | null = null;
+  let landmarkSprites: LandmarkSprites | null = null;
 
   const tileset: Tileset = {
     image,
+    get landmarks() {
+      if (!landmarkSprites) throw new Error('landmarks not ready');
+      return landmarkSprites;
+    },
     get ready() {
       return ready;
     },
@@ -351,13 +358,11 @@ export function createTileset(): Promise<Tileset> {
         }
 
         case TileId.Town:
-          blit(ctx, image, GRASS[v]!, dx, dy);
-          blit(ctx, image, HOUSE, dx, dy);
-          break;
-
         case TileId.Castle:
+        case TileId.Cave:
+          // 2×2 landmark sprite is drawn by drawWorld; base is grass.
           blit(ctx, image, GRASS[v]!, dx, dy);
-          blit(ctx, image, CASTLE, dx, dy);
+          dust(ctx, dx, dy, tileX * 13 + tileY * 7, '#4a6a38', '#9aba58', 0.09);
           break;
       }
     },
@@ -366,6 +371,7 @@ export function createTileset(): Promise<Tileset> {
   return new Promise((resolve, reject) => {
     image.onload = () => {
       mountains = bakeMountains(image);
+      landmarkSprites = bakeLandmarks(image);
       ready = true;
       resolve(tileset);
     };

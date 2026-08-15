@@ -68,6 +68,7 @@ export const TileId = {
   Bridge: 9,
   Town: 10,
   Castle: 11,
+  Cave: 12,
 } as const;
 
 export type TileIdValue = (typeof TileId)[keyof typeof TileId];
@@ -85,6 +86,7 @@ export const TILE_CHAR: Record<string, TileIdValue> = {
   B: TileId.Bridge,
   t: TileId.Town,
   c: TileId.Castle,
+  v: TileId.Cave,
 };
 
 export const PASSABLE: Record<TileIdValue, boolean> = {
@@ -100,13 +102,17 @@ export const PASSABLE: Record<TileIdValue, boolean> = {
   [TileId.Bridge]: true,
   [TileId.Town]: true,
   [TileId.Castle]: false,
+  [TileId.Cave]: true,
 };
+
+/** Landmark footprint is always 2×2 tiles (NW anchor in map data). */
+export const LANDMARK_SIZE = 2;
 
 export const MAP_WIDTH = 64;
 export const MAP_HEIGHT = 56;
 
-/** Scenic camera focus until the player exists. */
-export const PHASE2_CAMERA_TILE_X = 36;
-export const PHASE2_CAMERA_TILE_Y = 26;
+/** Scenic camera focus — mountain pass town + castle approach. */
+export const PHASE2_CAMERA_TILE_X = 32;
+export const PHASE2_CAMERA_TILE_Y = 18;
 
 export const TILESET_URL = '/tiles/punyworld-overworld-tileset.png';

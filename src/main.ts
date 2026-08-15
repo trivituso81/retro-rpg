@@ -1,4 +1,12 @@
-import { DEBUG_FPS, MAX_FRAME_DELTA_MS, TICK_MS } from './config';
+import {
+  DEBUG_FPS,
+  MAX_FRAME_DELTA_MS,
+  PHASE2_CAMERA_TILE_X,
+  PHASE2_CAMERA_TILE_Y,
+  TILE_SIZE,
+  TICK_MS,
+} from './config';
+import { cameraFollow, createCamera } from './render/camera';
 import {
   clearBuffer,
   createScreen,
@@ -6,6 +14,9 @@ import {
   resizeScreen,
   type Screen,
 } from './render/screen';
+import { createTileset } from './render/tileset';
+import { drawWorld } from './render/world';
+import { worldMap } from './world/map';
 
 const canvas = document.getElementById('game');
 if (!(canvas instanceof HTMLCanvasElement)) {
@@ -13,23 +24,32 @@ if (!(canvas instanceof HTMLCanvasElement)) {
 }
 
 const screen = createScreen(canvas);
+const tileset = createTileset();
+const camera = createCamera();
+
+// Phase 2: static camera focus on the continent interior.
+cameraFollow(
+  camera,
+  PHASE2_CAMERA_TILE_X * TILE_SIZE + TILE_SIZE / 2,
+  PHASE2_CAMERA_TILE_Y * TILE_SIZE + TILE_SIZE / 2,
+);
 
 let accumulator = 0;
 let lastTime = performance.now();
 let running = true;
+let nowMs = 0;
 
-// FPS tracking (debug)
 let fpsFrames = 0;
 let fpsElapsed = 0;
 let fpsDisplay = 0;
 
 function update(_dt: number): void {
-  // Phase 1: no game state yet.
+  // Phase 2: no player yet.
 }
 
-function drawFps(screen: Screen): void {
+function drawFps(target: Screen): void {
   if (!DEBUG_FPS) return;
-  const { bufferCtx } = screen;
+  const { bufferCtx } = target;
   bufferCtx.fillStyle = '#ffffff';
   bufferCtx.font = '8px monospace';
   bufferCtx.textBaseline = 'top';
@@ -37,8 +57,9 @@ function drawFps(screen: Screen): void {
 }
 
 function render(): void {
+  tileset.tick(nowMs);
   clearBuffer(screen);
-  // Phase 1: solid black frame + optional FPS.
+  drawWorld(screen.bufferCtx, worldMap, tileset, camera);
   drawFps(screen);
   present(screen);
 }
@@ -57,6 +78,7 @@ function frame(now: number): void {
     delta = MAX_FRAME_DELTA_MS;
   }
 
+  nowMs = now;
   accumulator += delta;
   while (accumulator >= TICK_MS) {
     update(TICK_MS);

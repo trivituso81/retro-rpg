@@ -116,51 +116,123 @@ function blit(
 }
 
 /**
- * Bake opaque mountain / peak tiles (Puny World has cliff *autotiles*,
- * not solid mountain fills — those fragments caused the black columns).
+ * Bake mountain tiles that read as peaked ranges (come to a head),
+ * not flat grey rock slabs. Variants shift the peak so neighbors don't stamp.
  */
 function bakeMountains(_sheet: HTMLImageElement): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
+  // 0–3 mountain, 4–7 peak (snow tip). Each is a full peaked silhouette.
   canvas.width = TILE_SIZE * 8;
   canvas.height = TILE_SIZE;
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) throw new Error('mountain bake failed');
   ctx.imageSmoothingEnabled = false;
 
-  for (let v = 0; v < 4; v++) {
-    const x0 = v * TILE_SIZE;
-    for (let y = 0; y < TILE_SIZE; y++) {
-      for (let x = 0; x < TILE_SIZE; x++) {
-        const shade = x * 0.7 + y * 0.4 + ((x * 3 + y * 5 + v * 17) % 5);
-        let c = '#5a6070';
-        if (shade < 10) c = '#7a8494';
-        if (shade < 5) c = '#9aa3b0';
-        if (((x + y * 3 + v) % 11) === 0) c = '#3a3f4a';
-        ctx.fillStyle = c;
-        ctx.fillRect(x0 + x, y, 1, 1);
-      }
-    }
-    // Ridge
-    ctx.fillStyle = '#b8c0cc';
-    for (let x = 0; x < TILE_SIZE; x++) {
-      const ry = 3 + ((x + v * 2) % 4);
-      ctx.fillRect(x0 + x, ry, 1, 1);
-    }
-  }
+  const COL = {
+    skyGap: '#5a7d45', // matches grass so gaps between peaks blend into plains
+    dark: '#4a4558',
+    mid: '#6a6578',
+    light: '#8a8498',
+    hilite: '#a8a0b4',
+    outline: '#2a2838',
+    snow: '#eef2f6',
+    snowShade: '#c8d0dc',
+  };
 
-  for (let v = 0; v < 4; v++) {
-    const x0 = (4 + v) * TILE_SIZE;
-    ctx.drawImage(canvas, (v % 4) * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE, x0, 0, TILE_SIZE, TILE_SIZE);
-    for (let y = 0; y < 6; y++) {
-      const half = 2 + y;
-      for (let x = 8 - half; x <= 7 + half; x++) {
-        ctx.fillStyle = y < 2 ? '#f0f4f8' : '#d0d8e0';
-        ctx.fillRect(x0 + x, y, 1, 1);
+  for (let v = 0; v < 8; v++) {
+    const x0 = v * TILE_SIZE;
+    const snow = v >= 4;
+    const peakX = 7 + (v % 4) - 1; // 6..9
+    const peakY = snow ? 1 : 2;
+
+    // Fill with grass-tint so non-mountain pixels don't read as grey slabs
+    ctx.fillStyle = COL.skyGap;
+    ctx.fillRect(x0, 0, TILE_SIZE, TILE_SIZE);
+
+    // Secondary shoulder peak for range feel
+    const shoulderX = peakX + (v % 2 === 0 ? -5 : 5);
+    const shoulderY = 6;
+
+    const drawPeak = (
+      px: number,
+      py: number,
+      halfBase: number,
+    ): void => {
+      for (let y = py; y < TILE_SIZE; y++) {
+        const t = (y - py) / Math.max(1, TILE_SIZE - 1 - py);
+        const half = Math.max(1, Math.floor(halfBase * t));
+        for (let x = px - half; x <= px + half; x++) {
+          if (x < 0 || x >= TILE_SIZE) continue;
+          const onLeft = x < px;
+          const edge = x === px - half || x === px + half;
+          let c = onLeft ? COL.light : COL.mid;
+          if (x === px) c = COL.hilite;
+          if (!onLeft && (x + y) % 3 === 0) c = COL.dark;
+          if (onLeft && (x * 2 + y) % 5 === 0) c = COL.hilite;
+          if (edge) c = COL.outline;
+          // Base scree
+          if (y > 12 && (x + y + v) % 4 === 0) c = COL.dark;
+          ctx.fillStyle = c;
+          ctx.fillRect(x0 + x, y, 1, 1);
+        }
       }
+    };
+
+    drawPeak(shoulderX, shoulderY, 5);
+    drawPeak(peakX, peakY, 8);
+
+    // Apex outline
+    ctx.fillStyle = COL.outline;
+    ctx.fillRect(x0 + peakX, peakY, 1, 1);
+
+    if (snow) {
+      // Snow cap coming to the head of the peak
+      for (let y = peakY; y <= peakY + 4; y++) {
+        const half = y - peakY;
+        for (let x = peakX - half; x <= peakX + half; x++) {
+          if (x < 0 || x >= TILE_SIZE) continue;
+          const edge = x === peakX - half || x === peakX + half;
+          ctx.fillStyle = edge ? COL.snowShade : y === peakY ? COL.snow : COL.snowShade;
+          ctx.fillRect(x0 + x, y, 1, 1);
+        }
+      }
+      ctx.fillStyle = COL.snow;
+      ctx.fillRect(x0 + peakX, peakY, 1, 1);
     }
   }
 
   return canvas;
+}
+
+/** Deterministic 0..1 noise for subtle terrain grit. */
+function grit(seed: number, x: number, y: number): number {
+  let n = (seed * 374761393 + x * 668265263 + y * 2147483647) | 0;
+  n = (n ^ (n >>> 13)) * 1274126177;
+  return ((n >>> 0) % 1000) / 1000;
+}
+
+/** Sparse pixel flecks — a touch of texture, not a new pattern. */
+function dust(
+  ctx: CanvasRenderingContext2D,
+  dx: number,
+  dy: number,
+  seed: number,
+  dark: string,
+  light: string,
+  density = 0.1,
+): void {
+  for (let y = 0; y < TILE_SIZE; y++) {
+    for (let x = 0; x < TILE_SIZE; x++) {
+      const g = grit(seed, x, y);
+      if (g < density * 0.5) {
+        ctx.fillStyle = dark;
+        ctx.fillRect(dx + x, dy + y, 1, 1);
+      } else if (g > 1 - density * 0.45) {
+        ctx.fillStyle = light;
+        ctx.fillRect(dx + x, dy + y, 1, 1);
+      }
+    }
+  }
 }
 
 export function createTileset(): Promise<Tileset> {
@@ -186,10 +258,12 @@ export function createTileset(): Promise<Tileset> {
       switch (tileId) {
         case TileId.Grass:
           blit(ctx, image, GRASS[v]!, dx, dy);
+          dust(ctx, dx, dy, tileX * 13 + tileY * 7, '#4a6a38', '#9aba58', 0.09);
           break;
 
         case TileId.TallGrass: {
           blit(ctx, image, GRASS[v]!, dx, dy);
+          dust(ctx, dx, dy, tileX * 13 + tileY * 7, '#3a5a28', '#8aaa48', 0.14);
           // Sparse bushes — not every tile, or it reads as forest.
           if (variant(tileX, tileY, 3) === 0) {
             blit(ctx, image, TREES[variant(tileX, tileY, TREES.length)]!, dx, dy);
@@ -199,6 +273,7 @@ export function createTileset(): Promise<Tileset> {
 
         case TileId.Forest: {
           blit(ctx, image, GRASS[v]!, dx, dy);
+          dust(ctx, dx, dy, tileX * 13 + tileY * 7, '#4a6a38', '#9aba58', 0.07);
           blit(ctx, image, TREES[variant(tileX, tileY, TREES.length)]!, dx, dy);
           if (variant(tileX + 2, tileY, 2) === 0) {
             blit(ctx, image, TREES[variant(tileX + 7, tileY, TREES.length)]!, dx, dy);
@@ -237,25 +312,37 @@ export function createTileset(): Promise<Tileset> {
         case TileId.Ocean: {
           const frame = OCEAN[oceanFrame]!;
           blit(ctx, image, frame[v]!, dx, dy);
-          // Soft wave highlights so flat fills don't look like a void.
-          ctx.fillStyle = oceanFrame === 0 ? '#5ec4d4' : '#4aa8c0';
+          dust(ctx, dx, dy, tileX * 9 + tileY * 3 + oceanFrame, '#1a6a88', '#6ec8d8', 0.08);
+          // Soft wave highlights
+          ctx.fillStyle = oceanFrame === 0 ? '#7ed4e0' : '#5eb8c8';
           const wy = 5 + ((tileX + tileY + oceanFrame) % 3);
           for (let x = 1; x < 15; x += 2) {
             ctx.fillRect(dx + x, dy + wy + (x % 4 === 1 ? 1 : 0), 2, 1);
+          }
+          const wy2 = 11 - oceanFrame;
+          for (let x = 2; x < 14; x += 3) {
+            ctx.fillRect(dx + x, dy + wy2, 2, 1);
           }
           break;
         }
 
         case TileId.Shallow:
           blit(ctx, image, SHALLOW[v]!, dx, dy);
+          dust(ctx, dx, dy, tileX * 11 + tileY * 5, '#3a98a8', '#a8e8f0', 0.1);
+          ctx.fillStyle = '#c0f0f8';
+          for (let x = 2; x < 14; x += 4) {
+            ctx.fillRect(dx + x, dy + 6 + ((x + tileY) % 3), 2, 1);
+          }
           break;
 
         case TileId.Beach:
           blit(ctx, image, DIRT[v]!, dx, dy);
+          dust(ctx, dx, dy, tileX * 17 + tileY * 11, '#b09050', '#e8d090', 0.11);
           break;
 
         case TileId.Road:
           blit(ctx, image, DIRT[v]!, dx, dy);
+          dust(ctx, dx, dy, tileX * 17 + tileY * 11, '#a08048', '#e0c878', 0.1);
           break;
 
         case TileId.Bridge: {

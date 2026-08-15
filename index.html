@@ -93,8 +93,8 @@
         background: rgba(255, 255, 255, 0.45);
       }
 
-      @media (min-width: 900px) {
-        /* Hide pad on wide desktop; keyboard is enough */
+      /* Hide pad only on mouse/trackpad desktops — iPads are often ≥900px wide. */
+      @media (hover: hover) and (pointer: fine) {
         #dpad {
           display: none;
         }

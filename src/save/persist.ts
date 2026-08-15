@@ -10,7 +10,7 @@ import {
 import type { Player } from '../entity/player';
 import type { WorldMap } from '../world/map';
 
-export const SAVE_KEY = 'overworld.save.v1';
+export const SAVE_KEY = 'overworld.save.v2';
 
 const FACINGS: readonly Facing[] = ['down', 'up', 'left', 'right'];
 

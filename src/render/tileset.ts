@@ -1,12 +1,8 @@
 /**
- * Real-art tileset loader (CC0 Puny World by Shade).
+ * ArMM1998 Zelda-like overworld atlas (CC0).
  *
- * Important: many cells in this atlas are *pond autotile pieces* (circular
- * water blobs). We only sample solid fill tiles + object overlays so the
- * overworld does not look like scattered puddles.
- *
- * Swap point: change `TILESET_URL` / the SRC tables. Use CC0 art only —
- * Kenney, OpenGameArt, itch.io. No ripped Nintendo / Square Enix sprites.
+ * Base terrain is drawn flat; forests / mountains / landmarks are tall
+ * overlays that participate in Y-sorting with the player.
  */
 
 import {
@@ -25,9 +21,11 @@ import type { WorldMap } from '../world/map';
 export type Tileset = {
   image: HTMLImageElement;
   landmarks: LandmarkSprites;
+  /** Pre-baked 16×32 tree overlays (variant count). */
+  trees: HTMLCanvasElement;
   ready: boolean;
   tick(nowMs: number): void;
-  drawTile(
+  drawBase(
     ctx: CanvasRenderingContext2D,
     tileId: TileIdValue,
     dx: number,
@@ -36,61 +34,53 @@ export type Tileset = {
     tileY: number,
     map: WorldMap,
   ): void;
+  /** Tall overlay for this tile, if any. Anchor = tile top-left; may draw above. */
+  drawOverlay(
+    ctx: CanvasRenderingContext2D,
+    tileId: TileIdValue,
+    dx: number,
+    dy: number,
+    tileX: number,
+    tileY: number,
+  ): void;
 };
 
 type Src = { tx: number; ty: number };
 
-/** Solid fills only — no pond/cliff autotile fragments. */
 const GRASS: Src[] = [
   { tx: 0, ty: 0 },
-  { tx: 1, ty: 0 },
-  { tx: 2, ty: 0 },
-  { tx: 0, ty: 2 },
+  { tx: 0, ty: 3 },
+  { tx: 1, ty: 3 },
+  { tx: 2, ty: 3 },
 ];
 
-/** Continuous dirt (path / beach sand centers). */
-const DIRT: Src[] = [
-  { tx: 8, ty: 1 },
-  { tx: 11, ty: 1 },
-  { tx: 20, ty: 1 },
-  { tx: 23, ty: 1 },
-];
-
-/** Slightly textured deep water animation frames (not pond pieces). */
-const OCEAN: Src[][] = [
-  [
-    { tx: 25, ty: 10 },
-    { tx: 26, ty: 10 },
-    { tx: 25, ty: 11 },
-    { tx: 26, ty: 11 },
-  ],
-  [
-    { tx: 25, ty: 13 },
-    { tx: 26, ty: 13 },
-    { tx: 25, ty: 14 },
-    { tx: 26, ty: 14 },
-  ],
+/** Animated water — four frames across cols 16–19, row 0. */
+const OCEAN: Src[] = [
+  { tx: 16, ty: 0 },
+  { tx: 17, ty: 0 },
+  { tx: 18, ty: 0 },
+  { tx: 19, ty: 0 },
 ];
 
 const SHALLOW: Src[] = [
-  { tx: 8, ty: 11 },
-  { tx: 8, ty: 14 },
-  { tx: 8, ty: 17 },
-  { tx: 8, ty: 20 },
+  { tx: 1, ty: 1 },
+  { tx: 2, ty: 1 },
+  { tx: 1, ty: 2 },
+  { tx: 2, ty: 2 },
 ];
 
-/** Tree / bush object overlays (transparent). */
-const TREES: Src[] = [
-  { tx: 8, ty: 8 },
-  { tx: 8, ty: 7 },
-  { tx: 8, ty: 9 },
-  { tx: 17, ty: 7 },
-  { tx: 17, ty: 8 },
-  { tx: 1, ty: 8 },
-  { tx: 4, ty: 8 },
-  { tx: 0, ty: 26 },
-  { tx: 1, ty: 26 },
-  { tx: 2, ty: 26 },
+/** Bush / canopy tops for tree bake. */
+const BUSH: Src[] = [
+  { tx: 0, ty: 6 },
+  { tx: 1, ty: 6 },
+  { tx: 0, ty: 7 },
+  { tx: 1, ty: 7 },
+];
+
+/** Small white flower accents. */
+const FLOWERS: Src[] = [
+  { tx: 2, ty: 12 },
+  { tx: 3, ty: 12 },
 ];
 
 function variant(tileX: number, tileY: number, mod: number): number {
@@ -117,26 +107,53 @@ function blit(
   );
 }
 
-/**
- * Bake peaked mountain *overlays* (transparent outside the silhouette)
- * so the rest of the tile can show the same grass as plains tiles.
- */
-function bakeMountains(_sheet: HTMLImageElement): HTMLCanvasElement {
+/** Recolor grass → dirt path fill (atlas lacks a clean solid dirt center). */
+function bakeDirt(sheet: HTMLImageElement): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
-  // 0–3 mountain, 4–7 peak (snow tip).
+  canvas.width = TILE_SIZE * 4;
+  canvas.height = TILE_SIZE;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  ctx.imageSmoothingEnabled = false;
+  for (let v = 0; v < 4; v++) {
+    const src = GRASS[v]!;
+    ctx.clearRect(v * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE);
+    blit(ctx, sheet, src, v * TILE_SIZE, 0);
+    const img = ctx.getImageData(v * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i]!;
+      const g = d[i + 1]!;
+      const b = d[i + 2]!;
+      const a = d[i + 3]!;
+      if (a < 10) continue;
+      // Push greens toward warm dirt
+      const nr = Math.min(255, Math.floor(r * 0.55 + g * 0.35 + 28));
+      const ng = Math.min(255, Math.floor(g * 0.4 + 36));
+      const nb = Math.min(255, Math.floor(b * 0.25 + 18));
+      d[i] = nr;
+      d[i + 1] = ng;
+      d[i + 2] = nb;
+    }
+    ctx.putImageData(img, v * TILE_SIZE, 0);
+  }
+  return canvas;
+}
+
+/** Peaked mountain silhouettes (transparent) — FF-style range icons. */
+function bakeMountains(): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
   canvas.width = TILE_SIZE * 8;
   canvas.height = TILE_SIZE;
-  const ctx = canvas.getContext('2d', { alpha: true });
-  if (!ctx) throw new Error('mountain bake failed');
+  const ctx = canvas.getContext('2d', { alpha: true })!;
   ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const COL = {
-    dark: '#4a4558',
-    mid: '#6a6578',
-    light: '#8a8498',
-    hilite: '#a8a0b4',
-    outline: '#2a2838',
+    dark: '#5a5048',
+    mid: '#7a7068',
+    light: '#9a9088',
+    hilite: '#b8b0a8',
+    outline: '#2a2420',
     snow: '#eef2f6',
     snowShade: '#c8d0dc',
   };
@@ -144,7 +161,7 @@ function bakeMountains(_sheet: HTMLImageElement): HTMLCanvasElement {
   for (let v = 0; v < 8; v++) {
     const x0 = v * TILE_SIZE;
     const snow = v >= 4;
-    const peakX = 7 + (v % 4) - 1; // 6..9
+    const peakX = 7 + (v % 4) - 1;
     const peakY = snow ? 1 : 2;
     const shoulderX = peakX + (v % 2 === 0 ? -5 : 5);
     const shoulderY = 6;
@@ -160,9 +177,7 @@ function bakeMountains(_sheet: HTMLImageElement): HTMLCanvasElement {
           let c = onLeft ? COL.light : COL.mid;
           if (x === px) c = COL.hilite;
           if (!onLeft && (x + y) % 3 === 0) c = COL.dark;
-          if (onLeft && (x * 2 + y) % 5 === 0) c = COL.hilite;
           if (edge) c = COL.outline;
-          if (y > 12 && (x + y + v) % 4 === 0) c = COL.dark;
           ctx.fillStyle = c;
           ctx.fillRect(x0 + x, y, 1, 1);
         }
@@ -171,58 +186,45 @@ function bakeMountains(_sheet: HTMLImageElement): HTMLCanvasElement {
 
     drawPeak(shoulderX, shoulderY, 5);
     drawPeak(peakX, peakY, 8);
-
-    ctx.fillStyle = COL.outline;
-    ctx.fillRect(x0 + peakX, peakY, 1, 1);
-
     if (snow) {
       for (let y = peakY; y <= peakY + 4; y++) {
         const half = y - peakY;
         for (let x = peakX - half; x <= peakX + half; x++) {
           if (x < 0 || x >= TILE_SIZE) continue;
           const edge = x === peakX - half || x === peakX + half;
-          ctx.fillStyle =
-            edge || y > peakY + 1 ? COL.snowShade : COL.snow;
+          ctx.fillStyle = edge || y > peakY + 1 ? COL.snowShade : COL.snow;
           ctx.fillRect(x0 + x, y, 1, 1);
         }
       }
-      ctx.fillStyle = COL.snow;
-      ctx.fillRect(x0 + peakX, peakY, 1, 1);
     }
   }
-
   return canvas;
 }
 
-/** Deterministic 0..1 noise for subtle terrain grit. */
-function grit(seed: number, x: number, y: number): number {
-  let n = (seed * 374761393 + x * 668265263 + y * 2147483647) | 0;
-  n = (n ^ (n >>> 13)) * 1274126177;
-  return ((n >>> 0) % 1000) / 1000;
-}
+/** Bake several 16×32 trees (canopy + trunk) for forest overlays. */
+function bakeTrees(sheet: HTMLImageElement): HTMLCanvasElement {
+  const count = 4;
+  const canvas = document.createElement('canvas');
+  canvas.width = TILE_SIZE * count;
+  canvas.height = TILE_SIZE * 2;
+  const ctx = canvas.getContext('2d', { alpha: true });
+  if (!ctx) throw new Error('tree bake failed');
+  ctx.imageSmoothingEnabled = false;
 
-/** Sparse pixel flecks — a touch of texture, not a new pattern. */
-function dust(
-  ctx: CanvasRenderingContext2D,
-  dx: number,
-  dy: number,
-  seed: number,
-  dark: string,
-  light: string,
-  density = 0.1,
-): void {
-  for (let y = 0; y < TILE_SIZE; y++) {
-    for (let x = 0; x < TILE_SIZE; x++) {
-      const g = grit(seed, x, y);
-      if (g < density * 0.5) {
-        ctx.fillStyle = dark;
-        ctx.fillRect(dx + x, dy + y, 1, 1);
-      } else if (g > 1 - density * 0.45) {
-        ctx.fillStyle = light;
-        ctx.fillRect(dx + x, dy + y, 1, 1);
-      }
-    }
+  for (let v = 0; v < count; v++) {
+    const x0 = v * TILE_SIZE;
+    blit(ctx, sheet, BUSH[v]!, x0, 0);
+    ctx.fillStyle = '#3a2818';
+    ctx.fillRect(x0 + 6, 18, 4, 12);
+    ctx.fillStyle = '#5a4030';
+    ctx.fillRect(x0 + 7, 18, 2, 11);
+    ctx.fillStyle = '#2a2018';
+    ctx.fillRect(x0 + 4, 28, 8, 3);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(x0 + 3, 29, 10, 2);
   }
+
+  return canvas;
 }
 
 export function createTileset(): Promise<Tileset> {
@@ -231,8 +233,10 @@ export function createTileset(): Promise<Tileset> {
 
   let oceanFrame = 0;
   let ready = false;
-  let mountains: HTMLCanvasElement | null = null;
   let landmarkSprites: LandmarkSprites | null = null;
+  let trees: HTMLCanvasElement | null = null;
+  let dirt: HTMLCanvasElement | null = null;
+  let mountains: HTMLCanvasElement | null = null;
 
   const tileset: Tileset = {
     image,
@@ -240,137 +244,126 @@ export function createTileset(): Promise<Tileset> {
       if (!landmarkSprites) throw new Error('landmarks not ready');
       return landmarkSprites;
     },
+    get trees() {
+      if (!trees) throw new Error('trees not ready');
+      return trees;
+    },
     get ready() {
       return ready;
     },
     tick(nowMs: number) {
-      oceanFrame = Math.floor(nowMs / OCEAN_FRAME_MS) % 2;
+      oceanFrame = Math.floor(nowMs / OCEAN_FRAME_MS) % OCEAN.length;
     },
-    drawTile(ctx, tileId, dx, dy, tileX, tileY, _map) {
-      if (!ready || !mountains) return;
+    drawBase(ctx, tileId, dx, dy, tileX, tileY, _map) {
+      if (!ready || !dirt) return;
       const v = variant(tileX, tileY, 4);
 
       switch (tileId) {
         case TileId.Grass:
-          blit(ctx, image, GRASS[v]!, dx, dy);
-          dust(ctx, dx, dy, tileX * 13 + tileY * 7, '#4a6a38', '#9aba58', 0.09);
-          break;
-
-        case TileId.TallGrass: {
-          blit(ctx, image, GRASS[v]!, dx, dy);
-          dust(ctx, dx, dy, tileX * 13 + tileY * 7, '#3a5a28', '#8aaa48', 0.14);
-          // Sparse bushes — not every tile, or it reads as forest.
-          if (variant(tileX, tileY, 3) === 0) {
-            blit(ctx, image, TREES[variant(tileX, tileY, TREES.length)]!, dx, dy);
-          }
-          break;
-        }
-
-        case TileId.Forest: {
-          blit(ctx, image, GRASS[v]!, dx, dy);
-          dust(ctx, dx, dy, tileX * 13 + tileY * 7, '#4a6a38', '#9aba58', 0.07);
-          blit(ctx, image, TREES[variant(tileX, tileY, TREES.length)]!, dx, dy);
-          if (variant(tileX + 2, tileY, 2) === 0) {
-            blit(ctx, image, TREES[variant(tileX + 7, tileY, TREES.length)]!, dx, dy);
-          }
-          break;
-        }
-
+        case TileId.TallGrass:
+        case TileId.Forest:
         case TileId.Mountain:
-          // Same grass base as plains, mountain icon on top — blends at the edges.
-          blit(ctx, image, GRASS[v]!, dx, dy);
-          dust(ctx, dx, dy, tileX * 13 + tileY * 7, '#4a6a38', '#9aba58', 0.09);
-          ctx.drawImage(
-            mountains,
-            v * TILE_SIZE,
-            0,
-            TILE_SIZE,
-            TILE_SIZE,
-            dx,
-            dy,
-            TILE_SIZE,
-            TILE_SIZE,
-          );
-          break;
-
         case TileId.Peak:
-          blit(ctx, image, GRASS[v]!, dx, dy);
-          dust(ctx, dx, dy, tileX * 13 + tileY * 7, '#4a6a38', '#9aba58', 0.09);
-          ctx.drawImage(
-            mountains,
-            (4 + v) * TILE_SIZE,
-            0,
-            TILE_SIZE,
-            TILE_SIZE,
-            dx,
-            dy,
-            TILE_SIZE,
-            TILE_SIZE,
-          );
-          break;
-
-        case TileId.Ocean: {
-          const frame = OCEAN[oceanFrame]!;
-          blit(ctx, image, frame[v]!, dx, dy);
-          dust(ctx, dx, dy, tileX * 9 + tileY * 3 + oceanFrame, '#1a6a88', '#6ec8d8', 0.08);
-          // Soft wave highlights
-          ctx.fillStyle = oceanFrame === 0 ? '#7ed4e0' : '#5eb8c8';
-          const wy = 5 + ((tileX + tileY + oceanFrame) % 3);
-          for (let x = 1; x < 15; x += 2) {
-            ctx.fillRect(dx + x, dy + wy + (x % 4 === 1 ? 1 : 0), 2, 1);
-          }
-          const wy2 = 11 - oceanFrame;
-          for (let x = 2; x < 14; x += 3) {
-            ctx.fillRect(dx + x, dy + wy2, 2, 1);
-          }
-          break;
-        }
-
-        case TileId.Shallow:
-          blit(ctx, image, SHALLOW[v]!, dx, dy);
-          dust(ctx, dx, dy, tileX * 11 + tileY * 5, '#3a98a8', '#a8e8f0', 0.1);
-          ctx.fillStyle = '#c0f0f8';
-          for (let x = 2; x < 14; x += 4) {
-            ctx.fillRect(dx + x, dy + 6 + ((x + tileY) % 3), 2, 1);
-          }
-          break;
-
-        case TileId.Beach:
-          blit(ctx, image, DIRT[v]!, dx, dy);
-          dust(ctx, dx, dy, tileX * 17 + tileY * 11, '#b09050', '#e8d090', 0.11);
-          break;
-
-        case TileId.Road:
-          blit(ctx, image, DIRT[v]!, dx, dy);
-          dust(ctx, dx, dy, tileX * 17 + tileY * 11, '#a08048', '#e0c878', 0.1);
-          break;
-
-        case TileId.Bridge: {
-          const frame = OCEAN[oceanFrame]!;
-          blit(ctx, image, frame[v]!, dx, dy);
-          blit(ctx, image, DIRT[0]!, dx, dy);
-          // Plank lines
-          ctx.fillStyle = '#5a4030';
-          ctx.fillRect(dx + 2, dy + 4, 12, 1);
-          ctx.fillRect(dx + 2, dy + 8, 12, 1);
-          ctx.fillRect(dx + 2, dy + 12, 12, 1);
-          break;
-        }
-
         case TileId.Town:
         case TileId.Castle:
         case TileId.Cave:
-          // 2×2 landmark sprite is drawn by drawWorld; base is grass.
           blit(ctx, image, GRASS[v]!, dx, dy);
-          dust(ctx, dx, dy, tileX * 13 + tileY * 7, '#4a6a38', '#9aba58', 0.09);
           break;
+
+        case TileId.Ocean:
+          blit(ctx, image, OCEAN[oceanFrame]!, dx, dy);
+          break;
+
+        case TileId.Shallow:
+          blit(ctx, image, SHALLOW[v]!, dx, dy);
+          break;
+
+        case TileId.Beach:
+        case TileId.Road:
+          ctx.drawImage(dirt, v * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE, dx, dy, TILE_SIZE, TILE_SIZE);
+          break;
+
+        case TileId.Bridge:
+          blit(ctx, image, OCEAN[oceanFrame]!, dx, dy);
+          // Simple plank bridge
+          ctx.fillStyle = '#6a4a30';
+          ctx.fillRect(dx + 2, dy + 3, 12, 10);
+          ctx.fillStyle = '#8a6a48';
+          ctx.fillRect(dx + 2, dy + 4, 12, 1);
+          ctx.fillRect(dx + 2, dy + 7, 12, 1);
+          ctx.fillRect(dx + 2, dy + 10, 12, 1);
+          ctx.fillStyle = '#4a3020';
+          ctx.fillRect(dx + 1, dy + 3, 1, 10);
+          ctx.fillRect(dx + 14, dy + 3, 1, 10);
+          break;
+      }
+    },
+    drawOverlay(ctx, tileId, dx, dy, tileX, tileY) {
+      if (!ready || !trees || !mountains) return;
+      const v = variant(tileX, tileY, 4);
+
+      if (tileId === TileId.TallGrass) {
+        if (variant(tileX, tileY, 3) === 0) {
+          blit(ctx, image, FLOWERS[variant(tileX, tileY, FLOWERS.length)]!, dx, dy);
+        } else if (variant(tileX, tileY, 5) === 0) {
+          blit(ctx, image, BUSH[variant(tileX, tileY, BUSH.length)]!, dx, dy);
+        }
+        return;
+      }
+
+      if (tileId === TileId.Forest) {
+        const tv = variant(tileX, tileY, 4);
+        ctx.drawImage(
+          trees,
+          tv * TILE_SIZE,
+          0,
+          TILE_SIZE,
+          TILE_SIZE * 2,
+          dx,
+          dy - TILE_SIZE,
+          TILE_SIZE,
+          TILE_SIZE * 2,
+        );
+        return;
+      }
+
+      if (tileId === TileId.Mountain) {
+        ctx.drawImage(
+          mountains,
+          v * TILE_SIZE,
+          0,
+          TILE_SIZE,
+          TILE_SIZE,
+          dx,
+          dy,
+          TILE_SIZE,
+          TILE_SIZE,
+        );
+        return;
+      }
+
+      if (tileId === TileId.Peak) {
+        ctx.drawImage(
+          mountains,
+          (4 + v) * TILE_SIZE,
+          0,
+          TILE_SIZE,
+          TILE_SIZE,
+          dx,
+          dy,
+          TILE_SIZE,
+          TILE_SIZE,
+        );
+        return;
       }
     },
   };
 
   return new Promise((resolve, reject) => {
     image.onload = () => {
-      mountains = bakeMountains(image);
+      trees = bakeTrees(image);
+      dirt = bakeDirt(image);
+      mountains = bakeMountains();
       landmarkSprites = bakeLandmarks(image);
       ready = true;
       resolve(tileset);

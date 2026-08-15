@@ -6,6 +6,7 @@ import {
   MAX_FRAME_DELTA_MS,
   RESET_TAP_WINDOW_MS,
   RESET_ZONE_SIZE,
+  TILE_SIZE,
   TICK_MS,
 } from './config';
 import {
@@ -99,8 +100,12 @@ function render(): void {
   clearBuffer(screen);
   if (tileset?.ready) {
     tileset.tick(nowMs);
-    drawWorld(screen.bufferCtx, worldMap, tileset, camera);
-    drawPlayer();
+    drawWorld(screen.bufferCtx, worldMap, tileset, camera, [
+      {
+        sortY: (player.tileY + 1) * TILE_SIZE + player.offsetY,
+        draw: drawPlayer,
+      },
+    ]);
   }
   drawFps(screen);
   present(screen);

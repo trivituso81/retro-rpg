@@ -105,19 +105,21 @@ export const PASSABLE: Record<TileIdValue, boolean> = {
   [TileId.Cave]: true,
 };
 
-/** Landmark footprint is always 2×2 tiles (NW anchor in map data). */
+/** Landmark ground footprint is 2×2 tiles (NW anchor in map data).
+ *  Sprites may extend taller northward for depth. */
 export const LANDMARK_SIZE = 2;
 
 export const MAP_WIDTH = 64;
 export const MAP_HEIGHT = 56;
 
-export const TILESET_URL = '/tiles/punyworld-overworld-tileset.png';
+export const TILESET_URL = '/tiles/armm-overworld.png';
+export const CHARACTER_URL = '/tiles/armm-character.png';
 
-/** Player sprite size (feet at bottom of sprite). */
+/** Player sprite size (feet at bottom of sprite). ArMM frames are 16×32. */
 export const SPRITE_WIDTH = 16;
-export const SPRITE_HEIGHT = 24;
-/** Draw sprite this many px above the tile origin for depth. */
-export const SPRITE_Y_OFFSET = 8;
+export const SPRITE_HEIGHT = 32;
+/** Draw sprite this many px above the tile origin so feet sit on the tile. */
+export const SPRITE_Y_OFFSET = 16;
 
 /** Frames to face a new direction before stepping (Dragon Quest feel). Set 0 to disable. */
 export const TURN_FRAMES = 6;
@@ -130,10 +132,10 @@ export const STUMBLE_FRAMES = 4;
 
 export type Facing = 'down' | 'up' | 'left' | 'right';
 
-/** Default spawn (tile coords) — road south of the mountain-pass town. */
-export const DEFAULT_SPAWN_X = 32;
-export const DEFAULT_SPAWN_Y = 24;
-export const DEFAULT_FACING: Facing = 'down';
+/** Default spawn (tile coords) — dirt path south of the village. */
+export const DEFAULT_SPAWN_X = 40;
+export const DEFAULT_SPAWN_Y = 29;
+export const DEFAULT_FACING: Facing = 'up';
 
 /** Debounce for localStorage writes after a step lands. */
 export const SAVE_DEBOUNCE_MS = 400;

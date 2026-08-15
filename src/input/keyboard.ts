@@ -22,13 +22,12 @@ const KEY_TO_DIR: Record<string, Facing> = {
  */
 export function bindKeyboard(input: InputState): () => void {
   const held = new Set<Facing>();
+  const heldOrder: Facing[] = [];
 
   const sync = () => {
-    // Priority: most recently pressed among held — track via array
-    input.dir = heldOrder.length > 0 ? heldOrder[heldOrder.length - 1]! : null;
+    input.keyboardDir =
+      heldOrder.length > 0 ? heldOrder[heldOrder.length - 1]! : null;
   };
-
-  const heldOrder: Facing[] = [];
 
   const onDown = (e: KeyboardEvent) => {
     const dir = KEY_TO_DIR[e.key];

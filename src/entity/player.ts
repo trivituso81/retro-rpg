@@ -11,7 +11,7 @@ import {
   WALK_FRAME_PERIOD,
   type Facing,
 } from '../config';
-import type { InputState } from '../input/input';
+import { activeDir, type InputState } from '../input/input';
 import type { WalkFrame } from '../render/sprites';
 import type { WorldMap } from '../world/map';
 
@@ -129,12 +129,14 @@ function tryMove(p: Internal, dir: Facing, map: WorldMap): void {
   beginStep(p, dir, map);
 }
 
-/**
- * Advance player one logic tick (1/60s).
- */
-export function updatePlayer(player: Player, input: InputState, map: WorldMap): void {
+/** Advance player one logic tick (1/60s). */
+export function updatePlayer(
+  player: Player,
+  input: InputState,
+  map: WorldMap,
+): void {
   const p = player as Internal;
-  const held = input.dir;
+  const held = activeDir(input);
 
   if (p.state === 'idle') {
     p.walkFrame = 0;
@@ -160,7 +162,6 @@ export function updatePlayer(player: Player, input: InputState, map: WorldMap): 
   if (p.state === 'stumble') {
     if (held) p.buffered = held;
     p.stumbleTimer -= 1;
-    // Tiny visual nudge back
     const { dx, dy } = DELTA[p.facing];
     const t = p.stumbleTimer / STUMBLE_FRAMES;
     p.offsetX = dx * 2 * t;
@@ -191,7 +192,6 @@ export function updatePlayer(player: Player, input: InputState, map: WorldMap): 
       p.walkTimer = 0;
       p.walkPhase = (p.walkPhase + 1) % 4;
     }
-    // neutral → left → neutral → right
     const cycle: WalkFrame[] = [0, 1, 0, 2];
     p.walkFrame = cycle[p.walkPhase]!;
 
@@ -205,7 +205,6 @@ export function updatePlayer(player: Player, input: InputState, map: WorldMap): 
       const next = p.buffered ?? held;
       p.buffered = null;
       if (next) {
-        // Chain with no idle frame — turn-in-place if needed, else step
         if (next !== p.facing && TURN_FRAMES > 0) {
           p.facing = next;
           p.state = 'turning';

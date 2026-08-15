@@ -58,9 +58,9 @@ export function createScreen(canvas: HTMLCanvasElement): Screen {
 }
 
 /**
- * Fit the 256×224 buffer into the viewport.
- * Prefer the largest integer scale that fits; use fractional only if
- * integer scale would be less than MIN_INTEGER_SCALE.
+ * Fit the internal buffer into the viewport, preserving aspect ratio.
+ * Uses the largest scale that fits (fractional OK) so phones fill the
+ * screen instead of sitting in a tiny integer-scaled letterbox.
  */
 export function resizeScreen(screen: Screen): void {
   const dpr = window.devicePixelRatio || 1;
@@ -80,9 +80,12 @@ export function resizeScreen(screen: Screen): void {
   const fitY = screen.display.height / INTERNAL_HEIGHT;
   const maxFit = Math.min(fitX, fitY);
 
-  let scale = Math.floor(maxFit);
-  if (scale < MIN_INTEGER_SCALE) {
-    scale = maxFit;
+  // Prefer max fit so mobile portrait uses the full width.
+  // Integer scale only when it loses less than ~8% vs filling.
+  const integer = Math.floor(maxFit);
+  let scale = maxFit;
+  if (integer >= MIN_INTEGER_SCALE && integer / maxFit >= 0.92) {
+    scale = integer;
   }
   if (scale < 1) {
     scale = maxFit;

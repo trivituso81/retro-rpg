@@ -2,12 +2,17 @@ import type { Facing } from '../config';
 
 export type Dir = Facing | null;
 
-/** Shared direction intent from keyboard / (later) touch. */
+/** Shared direction intent from keyboard + touch. */
 export type InputState = {
-  /** Held direction this frame (no diagonals). */
-  dir: Dir;
+  keyboardDir: Dir;
+  touchDir: Dir;
 };
 
 export function createInputState(): InputState {
-  return { dir: null };
+  return { keyboardDir: null, touchDir: null };
+}
+
+/** Touch overrides keyboard while a thumb is on the pad. */
+export function activeDir(input: InputState): Dir {
+  return input.touchDir ?? input.keyboardDir;
 }

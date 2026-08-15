@@ -6,6 +6,7 @@ import {
 } from './entity/player';
 import { createInputState } from './input/input';
 import { bindKeyboard } from './input/keyboard';
+import { bindTouchPad } from './input/touch';
 import { cameraFollow, createCamera } from './render/camera';
 import {
   clearBuffer,
@@ -24,11 +25,18 @@ if (!(canvas instanceof HTMLCanvasElement)) {
   throw new Error('#game canvas not found');
 }
 
+const pad = document.getElementById('dpad');
+const knob = document.getElementById('dpad-knob');
+if (!(pad instanceof HTMLElement) || !(knob instanceof HTMLElement)) {
+  throw new Error('#dpad elements not found');
+}
+
 const screen = createScreen(canvas);
 const camera = createCamera();
 const sprites = createSprites();
 const input = createInputState();
 bindKeyboard(input);
+bindTouchPad(pad, knob, input);
 const player = createPlayer();
 
 cameraFollow(camera, player.worldX, player.worldY);
@@ -120,6 +128,7 @@ function onVisibilityChange(): void {
 }
 
 window.addEventListener('resize', () => resizeScreen(screen));
+window.addEventListener('orientationchange', () => resizeScreen(screen));
 document.addEventListener('visibilitychange', onVisibilityChange);
 
 requestAnimationFrame(frame);

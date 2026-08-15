@@ -129,14 +129,48 @@ function tryMove(p: Internal, dir: Facing, map: WorldMap): void {
   beginStep(p, dir, map);
 }
 
+export type PlayerTickResult = {
+  /** True when a tile step completed this tick (for save hooks). */
+  landed: boolean;
+};
+
+/** Snap player to a tile (used for load / reset). */
+export function placePlayer(
+  player: Player,
+  tileX: number,
+  tileY: number,
+  facing: Facing,
+): void {
+  const p = player as Internal;
+  p.tileX = tileX;
+  p.tileY = tileY;
+  p.offsetX = 0;
+  p.offsetY = 0;
+  p.facing = facing;
+  p.state = 'idle';
+  p.walkFrame = 0;
+  p.turnTimer = 0;
+  p.stepTimer = 0;
+  p.stepFromX = tileX;
+  p.stepFromY = tileY;
+  p.stepToX = tileX;
+  p.stepToY = tileY;
+  p.walkTimer = 0;
+  p.walkPhase = 0;
+  p.stumbleTimer = 0;
+  p.buffered = null;
+  syncWorld(p);
+}
+
 /** Advance player one logic tick (1/60s). */
 export function updatePlayer(
   player: Player,
   input: InputState,
   map: WorldMap,
-): void {
+): PlayerTickResult {
   const p = player as Internal;
   const held = activeDir(input);
+  const result: PlayerTickResult = { landed: false };
 
   if (p.state === 'idle') {
     p.walkFrame = 0;
@@ -144,7 +178,7 @@ export function updatePlayer(
     p.offsetY = 0;
     if (held) tryMove(p, held, map);
     syncWorld(p);
-    return;
+    return result;
   }
 
   if (p.state === 'turning') {
@@ -156,7 +190,7 @@ export function updatePlayer(
       beginStep(p, dir, map);
     }
     syncWorld(p);
-    return;
+    return result;
   }
 
   if (p.state === 'stumble') {
@@ -175,7 +209,7 @@ export function updatePlayer(
       if (dir) tryMove(p, dir, map);
     }
     syncWorld(p);
-    return;
+    return result;
   }
 
   if (p.state === 'stepping') {
@@ -201,6 +235,7 @@ export function updatePlayer(
       p.offsetX = 0;
       p.offsetY = 0;
       p.walkFrame = 0;
+      result.landed = true;
 
       const next = p.buffered ?? held;
       p.buffered = null;
@@ -218,6 +253,8 @@ export function updatePlayer(
     }
     syncWorld(p);
   }
+
+  return result;
 }
 
 /** Top-left draw position in world pixels. Feet at tile bottom; 8px depth lift. */

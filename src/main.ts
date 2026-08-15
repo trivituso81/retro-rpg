@@ -1,6 +1,16 @@
-import { DEBUG_FPS, MAX_FRAME_DELTA_MS, TICK_MS } from './config';
+import {
+  DEBUG_FPS,
+  DEFAULT_FACING,
+  DEFAULT_SPAWN_X,
+  DEFAULT_SPAWN_Y,
+  MAX_FRAME_DELTA_MS,
+  RESET_TAP_WINDOW_MS,
+  RESET_ZONE_SIZE,
+  TICK_MS,
+} from './config';
 import {
   createPlayer,
+  placePlayer,
   playerDrawPos,
   updatePlayer,
 } from './entity/player';
@@ -18,6 +28,13 @@ import {
 import { createSprites } from './render/sprites';
 import { createTileset } from './render/tileset';
 import { drawWorld } from './render/world';
+import {
+  clearSave,
+  createSaveScheduler,
+  defaultSave,
+  loadSave,
+  serializePlayer,
+} from './save/persist';
 import { worldMap } from './world/map';
 
 const canvas = document.getElementById('game');
@@ -30,14 +47,19 @@ const knob = document.getElementById('dpad-knob');
 if (!(pad instanceof HTMLElement) || !(knob instanceof HTMLElement)) {
   throw new Error('#dpad elements not found');
 }
+const dpad = pad;
 
 const screen = createScreen(canvas);
 const camera = createCamera();
 const sprites = createSprites();
 const input = createInputState();
 bindKeyboard(input);
-bindTouchPad(pad, knob, input);
-const player = createPlayer();
+bindTouchPad(dpad, knob, input);
+
+const saved = loadSave(worldMap) ?? defaultSave();
+const player = createPlayer(saved.x, saved.y, saved.facing);
+
+const save = createSaveScheduler(() => serializePlayer(player));
 
 cameraFollow(camera, player.worldX, player.worldY);
 
@@ -52,8 +74,9 @@ let fpsElapsed = 0;
 let fpsDisplay = 0;
 
 function update(_dt: number): void {
-  updatePlayer(player, input, worldMap);
+  const { landed } = updatePlayer(player, input, worldMap);
   cameraFollow(camera, player.worldX, player.worldY);
+  if (landed) save.schedule();
 }
 
 function drawFps(target: Screen): void {
@@ -120,6 +143,7 @@ function frame(now: number): void {
 function onVisibilityChange(): void {
   if (document.hidden) {
     running = false;
+    save.flush();
   } else {
     running = true;
     accumulator = 0;
@@ -127,9 +151,67 @@ function onVisibilityChange(): void {
   }
 }
 
-window.addEventListener('resize', () => resizeScreen(screen));
-window.addEventListener('orientationchange', () => resizeScreen(screen));
+function onPageHide(): void {
+  save.flush();
+}
+
+function bindResize(): void {
+  const doResize = () => resizeScreen(screen);
+  window.addEventListener('resize', doResize);
+  window.addEventListener('orientationchange', doResize);
+  window.visualViewport?.addEventListener('resize', doResize);
+  window.visualViewport?.addEventListener('scroll', doResize);
+}
+
+/** Triple-tap top-right corner → clear save and respawn. */
+function bindResetGesture(): void {
+  const taps: number[] = [];
+
+  const inZone = (clientX: number, clientY: number) => {
+    const w = window.visualViewport?.width ?? window.innerWidth;
+    return clientX >= w - RESET_ZONE_SIZE && clientY <= RESET_ZONE_SIZE;
+  };
+
+  const onTap = (clientX: number, clientY: number) => {
+    if (!inZone(clientX, clientY)) {
+      taps.length = 0;
+      return;
+    }
+    const now = performance.now();
+    taps.push(now);
+    while (taps.length > 0 && now - taps[0]! > RESET_TAP_WINDOW_MS) {
+      taps.shift();
+    }
+    if (taps.length >= 3) {
+      taps.length = 0;
+      clearSave();
+      save.cancel();
+      placePlayer(player, DEFAULT_SPAWN_X, DEFAULT_SPAWN_Y, DEFAULT_FACING);
+      cameraFollow(camera, player.worldX, player.worldY);
+    }
+  };
+
+  window.addEventListener(
+    'touchend',
+    (e) => {
+      const t = e.changedTouches[0];
+      if (!t) return;
+      // Don't steal d-pad releases.
+      if (dpad.contains(e.target as Node)) return;
+      onTap(t.clientX, t.clientY);
+    },
+    { passive: true },
+  );
+
+  window.addEventListener('click', (e) => {
+    onTap(e.clientX, e.clientY);
+  });
+}
+
+bindResize();
+bindResetGesture();
 document.addEventListener('visibilitychange', onVisibilityChange);
+window.addEventListener('pagehide', onPageHide);
 
 requestAnimationFrame(frame);
 

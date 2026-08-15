@@ -57,15 +57,23 @@ export function createScreen(canvas: HTMLCanvasElement): Screen {
   return screen;
 }
 
+function viewportCssSize(): { cssW: number; cssH: number } {
+  const vv = window.visualViewport;
+  if (vv && vv.width > 0 && vv.height > 0) {
+    return { cssW: vv.width, cssH: vv.height };
+  }
+  return { cssW: window.innerWidth, cssH: window.innerHeight };
+}
+
 /**
- * Fit the internal buffer into the viewport, preserving aspect ratio.
- * Uses the largest scale that fits (fractional OK) so phones fill the
- * screen instead of sitting in a tiny integer-scaled letterbox.
+ * Scale the internal buffer into the viewport.
+ * - Desktop / landscape: contain (letterbox), prefer near-integer scale.
+ * - Phone / portrait: cover (fill the screen, crop edges) so the world
+ *   isn't a tiny band with huge black bars.
  */
 export function resizeScreen(screen: Screen): void {
   const dpr = window.devicePixelRatio || 1;
-  const cssW = window.innerWidth;
-  const cssH = window.innerHeight;
+  const { cssW, cssH } = viewportCssSize();
 
   screen.display.width = Math.max(1, Math.round(cssW * dpr));
   screen.display.height = Math.max(1, Math.round(cssH * dpr));
@@ -78,17 +86,21 @@ export function resizeScreen(screen: Screen): void {
 
   const fitX = screen.display.width / INTERNAL_WIDTH;
   const fitY = screen.display.height / INTERNAL_HEIGHT;
-  const maxFit = Math.min(fitX, fitY);
+  const contain = Math.min(fitX, fitY);
+  const cover = Math.max(fitX, fitY);
 
-  // Prefer max fit so mobile portrait uses the full width.
-  // Integer scale only when it loses less than ~8% vs filling.
-  const integer = Math.floor(maxFit);
-  let scale = maxFit;
-  if (integer >= MIN_INTEGER_SCALE && integer / maxFit >= 0.92) {
-    scale = integer;
+  // Narrow / tall phones: fill the whole screen (cover). Wide desktop: contain.
+  const useCover = cssW < 900 || cssH / cssW > 1.1;
+  let scale = useCover ? cover : contain;
+
+  if (!useCover) {
+    const integer = Math.floor(contain);
+    if (integer >= MIN_INTEGER_SCALE && integer / contain >= 0.92) {
+      scale = integer;
+    }
   }
   if (scale < 1) {
-    scale = maxFit;
+    scale = useCover ? cover : contain;
   }
 
   const destW = Math.round(INTERNAL_WIDTH * scale);

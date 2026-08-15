@@ -30,13 +30,13 @@
         image-rendering: crisp-edges;
       }
 
-      /* Virtual D-pad — sits in letterbox / safe area, not on the canvas */
+      /* Virtual D-pad — bottom-left over the game / safe area */
       #dpad {
         position: fixed;
-        left: 24px;
-        bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-        width: 140px;
-        height: 140px;
+        left: max(16px, env(safe-area-inset-left, 0px));
+        bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+        width: 152px;
+        height: 152px;
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.12);
         border: 2px solid rgba(255, 255, 255, 0.22);

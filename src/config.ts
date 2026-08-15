@@ -134,3 +134,11 @@ export type Facing = 'down' | 'up' | 'left' | 'right';
 export const DEFAULT_SPAWN_X = 32;
 export const DEFAULT_SPAWN_Y = 24;
 export const DEFAULT_FACING: Facing = 'down';
+
+/** Debounce for localStorage writes after a step lands. */
+export const SAVE_DEBOUNCE_MS = 400;
+
+/** Triple-tap reset zone (CSS px from top-right corner). */
+export const RESET_ZONE_SIZE = 72;
+/** Max gap between taps in a triple-tap reset. */
+export const RESET_TAP_WINDOW_MS = 900;

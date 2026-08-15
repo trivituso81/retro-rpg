@@ -1,7 +1,6 @@
 /**
- * 2×2 enterable landmarks (town / castle / cave).
- * Built from Puny World atlas cells with grass/black keyed out so they
- * sit on the same grass as the plains.
+ * Multi-tile landmarks from the ArMM1998 overworld atlas.
+ * Visual sprites are taller than the 2×2 map footprint and overhang north.
  */
 
 import { LANDMARK_SIZE, TILE_SIZE, TileId, type TileIdValue } from '../config';
@@ -10,10 +9,9 @@ export type LandmarkKind = 'town' | 'castle' | 'cave';
 
 export type Landmark = {
   kind: LandmarkKind;
-  /** Northwest tile of the 2×2 footprint. */
+  /** Northwest tile of the 2×2 ground footprint. */
   x: number;
   y: number;
-  /** Destination id for a future interior warp (Phase 3+). */
   destination: string;
 };
 
@@ -34,7 +32,6 @@ export function kindFromTile(id: TileIdValue): LandmarkKind | null {
   return null;
 }
 
-/** True if (x,y) is inside a landmark footprint but not the NW anchor. */
 export function isLandmarkCoverage(
   landmarks: readonly Landmark[],
   x: number,
@@ -74,112 +71,100 @@ export function findLandmarkAt(
 
 type Src = { tx: number; ty: number };
 
-function isKeyedOut(r: number, g: number, b: number, a: number): boolean {
-  if (a < 20) return true;
-  // Near-black atlas padding
-  if (r + g + b < 40) return true;
-  // Flat grass / olive fill baked into Puny World building tiles
-  if (g > r + 15 && g > b + 15 && g > 90 && g < 200 && r < 160 && b < 120) {
-    return true;
-  }
-  return false;
-}
-
-/** Copy one atlas cell onto dest, skipping grass/black key pixels. */
-function stampKeyed(
+function blit(
   dest: CanvasRenderingContext2D,
   sheet: HTMLImageElement,
   src: Src,
   dx: number,
   dy: number,
 ): void {
-  const tmp = document.createElement('canvas');
-  tmp.width = TILE_SIZE;
-  tmp.height = TILE_SIZE;
-  const tctx = tmp.getContext('2d', { willReadFrequently: true });
-  if (!tctx) return;
-  tctx.imageSmoothingEnabled = false;
-  tctx.drawImage(
+  dest.drawImage(
     sheet,
     src.tx * TILE_SIZE,
     src.ty * TILE_SIZE,
     TILE_SIZE,
     TILE_SIZE,
-    0,
-    0,
+    dx,
+    dy,
     TILE_SIZE,
     TILE_SIZE,
   );
-  const data = tctx.getImageData(0, 0, TILE_SIZE, TILE_SIZE);
-  const d = data.data;
-  for (let i = 0; i < d.length; i += 4) {
-    if (isKeyedOut(d[i]!, d[i + 1]!, d[i + 2]!, d[i + 3]!)) {
-      d[i + 3] = 0;
+}
+
+/** House front from atlas cols 6–9, rows 0–4 (4×5). */
+function bakeTown(sheet: HTMLImageElement): HTMLCanvasElement {
+  const w = 4;
+  const h = 5;
+  const c = document.createElement('canvas');
+  c.width = TILE_SIZE * w;
+  c.height = TILE_SIZE * h;
+  const ctx = c.getContext('2d')!;
+  ctx.imageSmoothingEnabled = false;
+  for (let oy = 0; oy < h; oy++) {
+    for (let ox = 0; ox < w; ox++) {
+      blit(ctx, sheet, { tx: 6 + ox, ty: 0 + oy }, ox * TILE_SIZE, oy * TILE_SIZE);
     }
   }
-  tctx.putImageData(data, 0, 0);
-  dest.drawImage(tmp, dx, dy);
-}
-
-function bakeTown(sheet: HTMLImageElement): HTMLCanvasElement {
-  const c = document.createElement('canvas');
-  c.width = TILE_SIZE * 2;
-  c.height = TILE_SIZE * 2;
-  const ctx = c.getContext('2d')!;
-  ctx.imageSmoothingEnabled = false;
-  // Cluster of houses forming one 2×2 town marker
-  // Top row: roofs / upper walls
-  stampKeyed(ctx, sheet, { tx: 7, ty: 26 }, 0, 0);
-  stampKeyed(ctx, sheet, { tx: 5, ty: 26 }, 16, 0);
-  // Bottom row: doors / entrances
-  stampKeyed(ctx, sheet, { tx: 7, ty: 27 }, 0, 16);
-  stampKeyed(ctx, sheet, { tx: 5, ty: 27 }, 16, 16);
-  // Well / sign accent between buildings
-  stampKeyed(ctx, sheet, { tx: 4, ty: 30 }, 10, 18);
   return c;
 }
 
+/**
+ * Castle keep: tower pieces + roof from the stone architecture block.
+ * 4×6 visual; bottom 2 rows are the walkable/solid footprint.
+ */
 function bakeCastle(sheet: HTMLImageElement): HTMLCanvasElement {
+  const w = 4;
+  const h = 6;
   const c = document.createElement('canvas');
-  c.width = TILE_SIZE * 2;
-  c.height = TILE_SIZE * 2;
+  c.width = TILE_SIZE * w;
+  c.height = TILE_SIZE * h;
   const ctx = c.getContext('2d')!;
   ctx.imageSmoothingEnabled = false;
-  // Cohesive 2×2 castle keep from atlas
-  stampKeyed(ctx, sheet, { tx: 12, ty: 26 }, 0, 0);
-  stampKeyed(ctx, sheet, { tx: 13, ty: 26 }, 16, 0);
-  stampKeyed(ctx, sheet, { tx: 12, ty: 27 }, 0, 16);
-  stampKeyed(ctx, sheet, { tx: 13, ty: 27 }, 16, 16);
+
+  // Roof / dome row
+  blit(ctx, sheet, { tx: 2, ty: 24 }, 8, 0);
+  blit(ctx, sheet, { tx: 3, ty: 24 }, 24, 0);
+  blit(ctx, sheet, { tx: 2, ty: 24 }, 40, 0);
+
+  // Upper tower walls
+  for (let row = 0; row < 3; row++) {
+    blit(ctx, sheet, { tx: 0, ty: 25 + (row % 2) }, 0, (1 + row) * TILE_SIZE);
+    blit(ctx, sheet, { tx: 1, ty: 25 + (row % 2) }, 16, (1 + row) * TILE_SIZE);
+    blit(ctx, sheet, { tx: 0, ty: 25 + (row % 2) }, 32, (1 + row) * TILE_SIZE);
+    blit(ctx, sheet, { tx: 1, ty: 25 + (row % 2) }, 48, (1 + row) * TILE_SIZE);
+  }
+
+  // Gate / base
+  blit(ctx, sheet, { tx: 0, ty: 26 }, 0, 4 * TILE_SIZE);
+  blit(ctx, sheet, { tx: 4, ty: 31 }, 16, 4 * TILE_SIZE);
+  blit(ctx, sheet, { tx: 5, ty: 31 }, 32, 4 * TILE_SIZE);
+  blit(ctx, sheet, { tx: 1, ty: 26 }, 48, 4 * TILE_SIZE);
+
+  blit(ctx, sheet, { tx: 0, ty: 27 }, 0, 5 * TILE_SIZE);
+  blit(ctx, sheet, { tx: 4, ty: 32 }, 16, 5 * TILE_SIZE);
+  blit(ctx, sheet, { tx: 5, ty: 32 }, 32, 5 * TILE_SIZE);
+  blit(ctx, sheet, { tx: 1, ty: 27 }, 48, 5 * TILE_SIZE);
+
+  // Dark doorway
+  ctx.fillStyle = '#0a0a14';
+  ctx.fillRect(26, 5 * TILE_SIZE + 4, 12, 12);
+
   return c;
 }
 
+/** Cave mouth 2×2 from rocky atlas cells. */
 function bakeCave(sheet: HTMLImageElement): HTMLCanvasElement {
   const c = document.createElement('canvas');
   c.width = TILE_SIZE * 2;
   c.height = TILE_SIZE * 2;
   const ctx = c.getContext('2d')!;
   ctx.imageSmoothingEnabled = false;
-
-  // Rocky mound using cave/rock atlas pieces, keyed onto grass
-  stampKeyed(ctx, sheet, { tx: 19, ty: 4 }, 0, 0);
-  stampKeyed(ctx, sheet, { tx: 20, ty: 4 }, 16, 0);
-  stampKeyed(ctx, sheet, { tx: 19, ty: 5 }, 0, 16);
-  stampKeyed(ctx, sheet, { tx: 20, ty: 5 }, 16, 16);
-
-  // Enlarge the dark entrance across the bottom-center so it reads as enterable
-  ctx.fillStyle = '#0a0a12';
-  ctx.fillRect(10, 18, 12, 10);
-  ctx.fillStyle = '#1a1810';
-  ctx.fillRect(9, 17, 14, 2);
-  // Timber frame
-  ctx.fillStyle = '#6a4a28';
-  ctx.fillRect(9, 17, 2, 12);
-  ctx.fillRect(21, 17, 2, 12);
-  ctx.fillRect(9, 17, 14, 2);
-  ctx.fillStyle = '#8a6a40';
-  ctx.fillRect(10, 18, 1, 10);
-  ctx.fillRect(21, 18, 1, 10);
-
+  blit(ctx, sheet, { tx: 14, ty: 14 }, 0, 0);
+  blit(ctx, sheet, { tx: 15, ty: 14 }, 16, 0);
+  blit(ctx, sheet, { tx: 14, ty: 15 }, 0, 16);
+  blit(ctx, sheet, { tx: 15, ty: 15 }, 16, 16);
+  ctx.fillStyle = '#080810';
+  ctx.fillRect(10, 14, 12, 14);
   return c;
 }
 
@@ -187,6 +172,13 @@ export type LandmarkSprites = {
   town: HTMLCanvasElement;
   castle: HTMLCanvasElement;
   cave: HTMLCanvasElement;
+};
+
+/** How many tiles the sprite extends above the footprint top. */
+export const LANDMARK_OVERHANG: Record<LandmarkKind, number> = {
+  town: 3, // 5 tall − 2 footprint
+  castle: 4, // 6 tall − 2 footprint
+  cave: 0,
 };
 
 export function bakeLandmarks(sheet: HTMLImageElement): LandmarkSprites {
@@ -201,8 +193,18 @@ export function drawLandmarkSprite(
   ctx: CanvasRenderingContext2D,
   sprites: LandmarkSprites,
   kind: LandmarkKind,
+  /** Top-left of the 2×2 footprint in screen pixels. */
   dx: number,
   dy: number,
 ): void {
-  ctx.drawImage(sprites[kind], dx, dy);
+  const spr = sprites[kind];
+  const overhang = LANDMARK_OVERHANG[kind] * TILE_SIZE;
+  // Center wider sprites on the 2×2 footprint
+  const extraW = spr.width - LANDMARK_SIZE * TILE_SIZE;
+  ctx.drawImage(spr, dx - Math.floor(extraW / 2), dy - overhang);
+}
+
+/** Sort key = bottom of footprint (world pixels). */
+export function landmarkSortY(lm: Landmark): number {
+  return (lm.y + LANDMARK_SIZE) * TILE_SIZE;
 }

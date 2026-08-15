@@ -22,34 +22,35 @@ export const TILE_SIZE = 16;
 export const OCEAN_FRAME_MS = 500;
 
 /**
- * Fixed 24-color SNES-style overworld palette.
+ * Fixed 24-color Super Famicom overworld palette.
+ * Muted / slightly desaturated — closer to FF6 / Chrono Trigger than NES neons.
  * Every drawn pixel must come from this list. No gradients.
  */
 export const PALETTE = [
-  '#1a1c2c', // 0  near-black
-  '#2d2b55', // 1  deep indigo (ocean deep)
-  '#3b5dc9', // 2  ocean mid
-  '#41a6f6', // 3  ocean light / wave
-  '#5fcde4', // 4  shallow water
-  '#94e2ff', // 5  foam / snow highlight
-  '#566c86', // 6  mountain shadow
-  '#8b9bb4', // 7  mountain mid / stone
-  '#c0cbdc', // 8  peak snow / light stone
-  '#3e8948', // 9  grass dark
-  '#63c74d', // 10 grass mid
-  '#a7f070', // 11 grass light
-  '#265c42', // 12 forest dark
-  '#193c3e', // 13 forest deepest / outline
-  '#b86f50', // 14 dirt / road
-  '#e4a672', // 15 sand / beach
-  '#f4dfa2', // 16 sand light / path highlight
-  '#8c3f2d', // 17 roof / castle brick dark
-  '#c6513a', // 18 roof mid / town marker
-  '#f77622', // 19 accent warm
-  '#ffcd75', // 20 accent light / window
-  '#2a2340', // 21 purple-brown shadow
-  '#5d275d', // 22 castle trim
-  '#ffffff', // 23 pure white (debug / snow tip)
+  '#1b1f2a', // 0  near-black outline
+  '#1e3a5c', // 1  ocean deep
+  '#2f5f8a', // 2  ocean mid
+  '#4a87b0', // 3  ocean light / wave
+  '#6aa6b8', // 4  shallow water
+  '#c9dde8', // 5  foam / snow bright
+  '#4a5568', // 6  mountain shadow
+  '#7a8494', // 7  mountain mid
+  '#b8c0cc', // 8  stone light / snow mid
+  '#3d5c38', // 9  grass dark (olive)
+  '#5a7d45', // 10 grass mid
+  '#7a9a55', // 11 grass light
+  '#2a4530', // 12 forest canopy dark
+  '#1a2e24', // 13 forest deepest / trunk
+  '#8a6a48', // 14 dirt / road
+  '#c4a06a', // 15 sand / beach
+  '#dcc898', // 16 sand light / worn path
+  '#6e3b2e', // 17 roof / brick dark
+  '#a05040', // 18 roof mid / town
+  '#c87840', // 19 warm accent
+  '#e8c878', // 20 window / lamp
+  '#3a3040', // 21 cool shadow
+  '#5a4060', // 22 castle trim
+  '#eef2f6', // 23 snow tip / highlight
 ] as const;
 
 export type PaletteIndex = number;
@@ -106,5 +107,5 @@ export const MAP_WIDTH = 64;
 export const MAP_HEIGHT = 56;
 
 /** Default camera focus (tile coords) until the player exists. */
-export const PHASE2_CAMERA_TILE_X = 32;
-export const PHASE2_CAMERA_TILE_Y = 28;
+export const PHASE2_CAMERA_TILE_X = 28;
+export const PHASE2_CAMERA_TILE_Y = 24;

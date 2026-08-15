@@ -27,7 +27,7 @@ export function drawWorld(
       if (!map.inBounds(tx, ty)) continue;
       const dx = tx * TILE_SIZE - cam.x;
       const dy = ty * TILE_SIZE - cam.y;
-      tileset.drawTile(ctx, map.getTile(tx, ty), dx, dy);
+      tileset.drawTile(ctx, map.getTile(tx, ty), dx, dy, tx, ty);
     }
   }
 }

@@ -1,11 +1,11 @@
+import { DEBUG_FPS, MAX_FRAME_DELTA_MS, TICK_MS } from './config';
 import {
-  DEBUG_FPS,
-  MAX_FRAME_DELTA_MS,
-  PHASE2_CAMERA_TILE_X,
-  PHASE2_CAMERA_TILE_Y,
-  TILE_SIZE,
-  TICK_MS,
-} from './config';
+  createPlayer,
+  playerDrawPos,
+  updatePlayer,
+} from './entity/player';
+import { createInputState } from './input/input';
+import { bindKeyboard } from './input/keyboard';
 import { cameraFollow, createCamera } from './render/camera';
 import {
   clearBuffer,
@@ -14,6 +14,7 @@ import {
   resizeScreen,
   type Screen,
 } from './render/screen';
+import { createSprites } from './render/sprites';
 import { createTileset } from './render/tileset';
 import { drawWorld } from './render/world';
 import { worldMap } from './world/map';
@@ -25,12 +26,12 @@ if (!(canvas instanceof HTMLCanvasElement)) {
 
 const screen = createScreen(canvas);
 const camera = createCamera();
+const sprites = createSprites();
+const input = createInputState();
+bindKeyboard(input);
+const player = createPlayer();
 
-cameraFollow(
-  camera,
-  PHASE2_CAMERA_TILE_X * TILE_SIZE + TILE_SIZE / 2,
-  PHASE2_CAMERA_TILE_Y * TILE_SIZE + TILE_SIZE / 2,
-);
+cameraFollow(camera, player.worldX, player.worldY);
 
 let accumulator = 0;
 let lastTime = performance.now();
@@ -43,7 +44,8 @@ let fpsElapsed = 0;
 let fpsDisplay = 0;
 
 function update(_dt: number): void {
-  // Phase 2: no player yet.
+  updatePlayer(player, input, worldMap);
+  cameraFollow(camera, player.worldX, player.worldY);
 }
 
 function drawFps(target: Screen): void {
@@ -55,11 +57,19 @@ function drawFps(target: Screen): void {
   bufferCtx.fillText(`${fpsDisplay} FPS`, 4, 4);
 }
 
+function drawPlayer(): void {
+  const { x, y } = playerDrawPos(player);
+  const dx = Math.round(x - camera.x);
+  const dy = Math.round(y - camera.y);
+  sprites.draw(screen.bufferCtx, player.facing, player.walkFrame, dx, dy);
+}
+
 function render(): void {
   clearBuffer(screen);
   if (tileset?.ready) {
     tileset.tick(nowMs);
     drawWorld(screen.bufferCtx, worldMap, tileset, camera);
+    drawPlayer();
   }
   drawFps(screen);
   present(screen);

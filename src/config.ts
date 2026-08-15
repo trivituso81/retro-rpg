@@ -111,8 +111,26 @@ export const LANDMARK_SIZE = 2;
 export const MAP_WIDTH = 64;
 export const MAP_HEIGHT = 56;
 
-/** Scenic camera focus — mountain pass town + castle approach. */
-export const PHASE2_CAMERA_TILE_X = 32;
-export const PHASE2_CAMERA_TILE_Y = 18;
-
 export const TILESET_URL = '/tiles/punyworld-overworld-tileset.png';
+
+/** Player sprite size (feet at bottom of sprite). */
+export const SPRITE_WIDTH = 16;
+export const SPRITE_HEIGHT = 24;
+/** Draw sprite this many px above the tile origin for depth. */
+export const SPRITE_Y_OFFSET = 8;
+
+/** Frames to face a new direction before stepping (Dragon Quest feel). Set 0 to disable. */
+export const TURN_FRAMES = 6;
+/** Frames to interpolate one tile step at 60fps. */
+export const STEP_FRAMES = 16;
+/** Walk cycle advances every N frames while stepping. */
+export const WALK_FRAME_PERIOD = 8;
+/** Optional bump animation when walking into a wall. */
+export const STUMBLE_FRAMES = 4;
+
+export type Facing = 'down' | 'up' | 'left' | 'right';
+
+/** Default spawn (tile coords) — road south of the mountain-pass town. */
+export const DEFAULT_SPAWN_X = 32;
+export const DEFAULT_SPAWN_Y = 24;
+export const DEFAULT_FACING: Facing = 'down';

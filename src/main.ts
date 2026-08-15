@@ -24,10 +24,8 @@ if (!(canvas instanceof HTMLCanvasElement)) {
 }
 
 const screen = createScreen(canvas);
-const tileset = createTileset();
 const camera = createCamera();
 
-// Phase 2: static camera focus on the continent interior.
 cameraFollow(
   camera,
   PHASE2_CAMERA_TILE_X * TILE_SIZE + TILE_SIZE / 2,
@@ -38,6 +36,7 @@ let accumulator = 0;
 let lastTime = performance.now();
 let running = true;
 let nowMs = 0;
+let tileset: Awaited<ReturnType<typeof createTileset>> | null = null;
 
 let fpsFrames = 0;
 let fpsElapsed = 0;
@@ -57,9 +56,11 @@ function drawFps(target: Screen): void {
 }
 
 function render(): void {
-  tileset.tick(nowMs);
   clearBuffer(screen);
-  drawWorld(screen.bufferCtx, worldMap, tileset, camera);
+  if (tileset?.ready) {
+    tileset.tick(nowMs);
+    drawWorld(screen.bufferCtx, worldMap, tileset, camera);
+  }
   drawFps(screen);
   present(screen);
 }
@@ -112,3 +113,11 @@ window.addEventListener('resize', () => resizeScreen(screen));
 document.addEventListener('visibilitychange', onVisibilityChange);
 
 requestAnimationFrame(frame);
+
+createTileset()
+  .then((ts) => {
+    tileset = ts;
+  })
+  .catch((err) => {
+    console.error(err);
+  });

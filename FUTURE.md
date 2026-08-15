@@ -4,4 +4,5 @@ Do not implement these in the prototype. Capture useful ideas here instead.
 
 ## Decisions / divergences
 
-- Internal resolution raised from SNES 256×224 to **512×448** with **32×32** tiles so the overworld reads as 16-bit on modern phone screens (same tile count on screen, 4× pixel detail per tile).
+- Internal resolution is **512×448** with **16×16** tiles (wider vista than SNES 256×224, closer to how FF overworlds feel on a phone).
+- Terrain art is **CC0 Puny World** (Shade), not procedural — hand-painted tiles are what make 16-bit overworlds read as 16-bit.

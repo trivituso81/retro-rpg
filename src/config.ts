@@ -105,8 +105,8 @@ export const PASSABLE: Record<TileIdValue, boolean> = {
 export const MAP_WIDTH = 64;
 export const MAP_HEIGHT = 56;
 
-/** Scenic camera focus until the player exists — coastline + mountains. */
-export const PHASE2_CAMERA_TILE_X = 40;
-export const PHASE2_CAMERA_TILE_Y = 22;
+/** Scenic camera focus until the player exists. */
+export const PHASE2_CAMERA_TILE_X = 36;
+export const PHASE2_CAMERA_TILE_Y = 26;
 
 export const TILESET_URL = '/tiles/punyworld-overworld-tileset.png';

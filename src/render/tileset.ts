@@ -1,9 +1,12 @@
 /**
  * Real-art tileset loader (CC0 Puny World by Shade).
  *
- * Swap point: change `TILESET_URL` / the `SRC` table below to point at another
- * atlas. If replacing with real art, use CC0 assets (Kenney, OpenGameArt,
- * itch.io free tilesets). Do not use ripped Nintendo or Square Enix sprites.
+ * Important: many cells in this atlas are *pond autotile pieces* (circular
+ * water blobs). We only sample solid fill tiles + object overlays so the
+ * overworld does not look like scattered puddles.
+ *
+ * Swap point: change `TILESET_URL` / the SRC tables. Use CC0 art only —
+ * Kenney, OpenGameArt, itch.io. No ripped Nintendo / Square Enix sprites.
  */
 
 import {
@@ -32,68 +35,46 @@ export type Tileset = {
 
 type Src = { tx: number; ty: number };
 
-/** Atlas cell → source. Multiple entries = variants. */
-const BASE: Record<TileIdValue, Src[]> = {
-  [TileId.Grass]: [
-    { tx: 0, ty: 0 },
-    { tx: 1, ty: 0 },
-    { tx: 2, ty: 0 },
-    { tx: 0, ty: 2 },
-  ],
-  [TileId.TallGrass]: [
-    { tx: 0, ty: 0 },
-    { tx: 1, ty: 0 },
-    { tx: 2, ty: 0 },
-    { tx: 0, ty: 2 },
-  ],
-  // Forest base is grass; tree overlay applied in drawTile.
-  [TileId.Forest]: [
-    { tx: 0, ty: 0 },
-    { tx: 1, ty: 0 },
-    { tx: 2, ty: 0 },
-  ],
-  [TileId.Mountain]: [
-    { tx: 12, ty: 5 },
-    { tx: 1, ty: 5 },
-    { tx: 0, ty: 5 },
-    { tx: 14, ty: 5 },
-  ],
-  [TileId.Peak]: [
-    { tx: 14, ty: 4 },
-    { tx: 15, ty: 4 },
-    { tx: 12, ty: 5 },
-    { tx: 14, ty: 5 },
-  ],
-  [TileId.Ocean]: [
-    { tx: 18, ty: 11 },
-    { tx: 19, ty: 11 },
-    { tx: 20, ty: 11 },
-    { tx: 21, ty: 11 },
-  ],
-  [TileId.Shallow]: [
-    { tx: 5, ty: 11 },
-    { tx: 5, ty: 12 },
-    { tx: 16, ty: 11 },
-    { tx: 17, ty: 11 },
-  ],
-  [TileId.Beach]: [
-    { tx: 8, ty: 10 },
-    { tx: 9, ty: 10 },
-    { tx: 10, ty: 10 },
-    { tx: 11, ty: 11 },
-  ],
-  [TileId.Road]: [
-    { tx: 4, ty: 1 },
-    { tx: 5, ty: 1 },
-    { tx: 6, ty: 1 },
-    { tx: 9, ty: 1 },
-  ],
-  [TileId.Bridge]: [{ tx: 19, ty: 4 }],
-  [TileId.Town]: [{ tx: 1, ty: 0 }], // grass under house overlay
-  [TileId.Castle]: [{ tx: 1, ty: 0 }],
-};
+/** Solid fills only — no pond/cliff autotile fragments. */
+const GRASS: Src[] = [
+  { tx: 0, ty: 0 },
+  { tx: 1, ty: 0 },
+  { tx: 2, ty: 0 },
+  { tx: 0, ty: 2 },
+];
 
-/** Tree overlays for forest (drawn with alpha on top of grass). */
+/** Continuous dirt (path / beach sand centers). */
+const DIRT: Src[] = [
+  { tx: 8, ty: 1 },
+  { tx: 11, ty: 1 },
+  { tx: 20, ty: 1 },
+  { tx: 23, ty: 1 },
+];
+
+/** Slightly textured deep water animation frames (not pond pieces). */
+const OCEAN: Src[][] = [
+  [
+    { tx: 25, ty: 10 },
+    { tx: 26, ty: 10 },
+    { tx: 25, ty: 11 },
+    { tx: 26, ty: 11 },
+  ],
+  [
+    { tx: 25, ty: 13 },
+    { tx: 26, ty: 13 },
+    { tx: 25, ty: 14 },
+    { tx: 26, ty: 14 },
+  ],
+];
+
+const SHALLOW: Src[] = [
+  { tx: 8, ty: 11 },
+  { tx: 8, ty: 14 },
+  { tx: 8, ty: 17 },
+  { tx: 8, ty: 20 },
+];
+
+/** Tree / bush object overlays (transparent). */
 const TREES: Src[] = [
   { tx: 8, ty: 8 },
   { tx: 8, ty: 7 },
@@ -102,74 +83,21 @@ const TREES: Src[] = [
   { tx: 17, ty: 8 },
   { tx: 1, ty: 8 },
   { tx: 4, ty: 8 },
-  { tx: 2, ty: 7 },
-];
-
-/** Dense forest fill tiles (full 16×16 tree canopy clusters). */
-const FOREST_FILL: Src[] = [
-  { tx: 1, ty: 7 },
-  { tx: 2, ty: 7 },
-  { tx: 4, ty: 7 },
-  { tx: 5, ty: 7 },
-  { tx: 10, ty: 7 },
-  { tx: 11, ty: 7 },
-  { tx: 13, ty: 7 },
-  { tx: 14, ty: 7 },
+  { tx: 0, ty: 26 },
+  { tx: 1, ty: 26 },
+  { tx: 2, ty: 26 },
 ];
 
 const HOUSE: Src = { tx: 7, ty: 27 };
 const CASTLE: Src = { tx: 12, ty: 26 };
-const BRIDGE_PLANK: Src = { tx: 4, ty: 1 };
-const OCEAN_FRAMES: Src[][] = [
-  [
-    { tx: 18, ty: 11 },
-    { tx: 19, ty: 11 },
-    { tx: 20, ty: 11 },
-    { tx: 21, ty: 11 },
-  ],
-  [
-    { tx: 18, ty: 13 },
-    { tx: 19, ty: 13 },
-    { tx: 20, ty: 13 },
-    { tx: 21, ty: 13 },
-  ],
-];
 
-/** Shoreline tiles when ocean sits next to land (N,E,S,W bit flags). */
-const OCEAN_SHORE: Record<number, Src> = {
-  // bits: N=1 E=2 S=4 W=8 — land on that side
-  1: { tx: 15, ty: 10 },
-  2: { tx: 16, ty: 11 },
-  4: { tx: 15, ty: 12 },
-  8: { tx: 14, ty: 11 },
-  3: { tx: 16, ty: 10 },
-  6: { tx: 16, ty: 12 },
-  12: { tx: 14, ty: 12 },
-  9: { tx: 14, ty: 10 },
-};
-
-function isLand(id: TileIdValue): boolean {
-  return (
-    id === TileId.Grass ||
-    id === TileId.TallGrass ||
-    id === TileId.Forest ||
-    id === TileId.Mountain ||
-    id === TileId.Peak ||
-    id === TileId.Beach ||
-    id === TileId.Road ||
-    id === TileId.Bridge ||
-    id === TileId.Town ||
-    id === TileId.Castle
-  );
-}
-
-function variantIndex(tileX: number, tileY: number, mod: number): number {
+function variant(tileX: number, tileY: number, mod: number): number {
   return Math.abs(tileX * 3 + tileY * 5) % mod;
 }
 
 function blit(
   ctx: CanvasRenderingContext2D,
-  image: HTMLImageElement,
+  image: CanvasImageSource,
   src: Src,
   dx: number,
   dy: number,
@@ -187,25 +115,61 @@ function blit(
   );
 }
 
-function landMask(map: WorldMap, x: number, y: number): number {
-  let m = 0;
-  if (map.inBounds(x, y - 1) && isLand(map.getTile(x, y - 1))) m |= 1;
-  if (map.inBounds(x + 1, y) && isLand(map.getTile(x + 1, y))) m |= 2;
-  if (map.inBounds(x, y + 1) && isLand(map.getTile(x, y + 1))) m |= 4;
-  if (map.inBounds(x - 1, y) && isLand(map.getTile(x - 1, y))) m |= 8;
-  return m;
+/**
+ * Bake opaque mountain / peak tiles (Puny World has cliff *autotiles*,
+ * not solid mountain fills — those fragments caused the black columns).
+ */
+function bakeMountains(_sheet: HTMLImageElement): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = TILE_SIZE * 8;
+  canvas.height = TILE_SIZE;
+  const ctx = canvas.getContext('2d', { alpha: false });
+  if (!ctx) throw new Error('mountain bake failed');
+  ctx.imageSmoothingEnabled = false;
+
+  for (let v = 0; v < 4; v++) {
+    const x0 = v * TILE_SIZE;
+    for (let y = 0; y < TILE_SIZE; y++) {
+      for (let x = 0; x < TILE_SIZE; x++) {
+        const shade = x * 0.7 + y * 0.4 + ((x * 3 + y * 5 + v * 17) % 5);
+        let c = '#5a6070';
+        if (shade < 10) c = '#7a8494';
+        if (shade < 5) c = '#9aa3b0';
+        if (((x + y * 3 + v) % 11) === 0) c = '#3a3f4a';
+        ctx.fillStyle = c;
+        ctx.fillRect(x0 + x, y, 1, 1);
+      }
+    }
+    // Ridge
+    ctx.fillStyle = '#b8c0cc';
+    for (let x = 0; x < TILE_SIZE; x++) {
+      const ry = 3 + ((x + v * 2) % 4);
+      ctx.fillRect(x0 + x, ry, 1, 1);
+    }
+  }
+
+  for (let v = 0; v < 4; v++) {
+    const x0 = (4 + v) * TILE_SIZE;
+    ctx.drawImage(canvas, (v % 4) * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE, x0, 0, TILE_SIZE, TILE_SIZE);
+    for (let y = 0; y < 6; y++) {
+      const half = 2 + y;
+      for (let x = 8 - half; x <= 7 + half; x++) {
+        ctx.fillStyle = y < 2 ? '#f0f4f8' : '#d0d8e0';
+        ctx.fillRect(x0 + x, y, 1, 1);
+      }
+    }
+  }
+
+  return canvas;
 }
 
-/**
- * Load the atlas. Resolves when the image is ready to draw.
- * Until then `ready` is false and drawTile no-ops.
- */
 export function createTileset(): Promise<Tileset> {
   const image = new Image();
   image.decoding = 'async';
 
   let oceanFrame = 0;
   let ready = false;
+  let mountains: HTMLCanvasElement | null = null;
 
   const tileset: Tileset = {
     image,
@@ -215,80 +179,118 @@ export function createTileset(): Promise<Tileset> {
     tick(nowMs: number) {
       oceanFrame = Math.floor(nowMs / OCEAN_FRAME_MS) % 2;
     },
-    drawTile(ctx, tileId, dx, dy, tileX, tileY, map) {
-      if (!ready) return;
+    drawTile(ctx, tileId, dx, dy, tileX, tileY, _map) {
+      if (!ready || !mountains) return;
+      const v = variant(tileX, tileY, 4);
 
-      if (tileId === TileId.Bridge) {
-        const water = OCEAN_FRAMES[oceanFrame]![variantIndex(tileX, tileY, 4)]!;
-        blit(ctx, image, water, dx, dy);
-        blit(ctx, image, BRIDGE_PLANK, dx, dy);
-        return;
-      }
+      switch (tileId) {
+        case TileId.Grass:
+          blit(ctx, image, GRASS[v]!, dx, dy);
+          break;
 
-      if (tileId === TileId.Ocean) {
-        const mask = landMask(map, tileX, tileY);
-        const shore = OCEAN_SHORE[mask];
-        if (shore) {
-          blit(ctx, image, shore, dx, dy);
-        } else {
-          const frames = OCEAN_FRAMES[oceanFrame]!;
-          const src = frames[variantIndex(tileX, tileY, frames.length)]!;
-          blit(ctx, image, src, dx, dy);
+        case TileId.TallGrass: {
+          blit(ctx, image, GRASS[v]!, dx, dy);
+          // Sparse bushes — not every tile, or it reads as forest.
+          if (variant(tileX, tileY, 3) === 0) {
+            blit(ctx, image, TREES[variant(tileX, tileY, TREES.length)]!, dx, dy);
+          }
+          break;
         }
-        return;
-      }
 
-      if (tileId === TileId.Forest) {
-        // Grass underlay so transparent canopy pixels don't show as black voids.
-        const grass = BASE[TileId.Grass][variantIndex(tileX, tileY, 4)]!;
-        blit(ctx, image, grass, dx, dy);
-        const fill = FOREST_FILL[variantIndex(tileX, tileY, FOREST_FILL.length)]!;
-        blit(ctx, image, fill, dx, dy);
-        if (variantIndex(tileX, tileY, 5) === 0) {
-          const tree = TREES[variantIndex(tileX + 1, tileY, TREES.length)]!;
-          blit(ctx, image, tree, dx, dy);
+        case TileId.Forest: {
+          blit(ctx, image, GRASS[v]!, dx, dy);
+          blit(ctx, image, TREES[variant(tileX, tileY, TREES.length)]!, dx, dy);
+          if (variant(tileX + 2, tileY, 2) === 0) {
+            blit(ctx, image, TREES[variant(tileX + 7, tileY, TREES.length)]!, dx, dy);
+          }
+          break;
         }
-        return;
-      }
 
-      if (tileId === TileId.TallGrass) {
-        const grass = BASE[TileId.Grass][variantIndex(tileX, tileY, 4)]!;
-        blit(ctx, image, grass, dx, dy);
-        // Scatter bush/crop accents for denser reading.
-        const bush = TREES[variantIndex(tileX, tileY, 3)]!;
-        if (variantIndex(tileX, tileY, 2) === 0) {
-          blit(ctx, image, bush, dx, dy);
+        case TileId.Mountain:
+          ctx.drawImage(
+            mountains,
+            v * TILE_SIZE,
+            0,
+            TILE_SIZE,
+            TILE_SIZE,
+            dx,
+            dy,
+            TILE_SIZE,
+            TILE_SIZE,
+          );
+          break;
+
+        case TileId.Peak:
+          ctx.drawImage(
+            mountains,
+            (4 + v) * TILE_SIZE,
+            0,
+            TILE_SIZE,
+            TILE_SIZE,
+            dx,
+            dy,
+            TILE_SIZE,
+            TILE_SIZE,
+          );
+          break;
+
+        case TileId.Ocean: {
+          const frame = OCEAN[oceanFrame]!;
+          blit(ctx, image, frame[v]!, dx, dy);
+          // Soft wave highlights so flat fills don't look like a void.
+          ctx.fillStyle = oceanFrame === 0 ? '#5ec4d4' : '#4aa8c0';
+          const wy = 5 + ((tileX + tileY + oceanFrame) % 3);
+          for (let x = 1; x < 15; x += 2) {
+            ctx.fillRect(dx + x, dy + wy + (x % 4 === 1 ? 1 : 0), 2, 1);
+          }
+          break;
         }
-        return;
-      }
 
-      if (tileId === TileId.Mountain || tileId === TileId.Peak) {
-        // Solid rock underlay, then detail tile (some cliff tiles are partial).
-        blit(ctx, image, { tx: 12, ty: 5 }, dx, dy);
-        const list = BASE[tileId];
-        const src = list[variantIndex(tileX, tileY, list.length)]!;
-        blit(ctx, image, src, dx, dy);
-        return;
-      }
+        case TileId.Shallow:
+          blit(ctx, image, SHALLOW[v]!, dx, dy);
+          break;
 
-      const list = BASE[tileId];
-      const src = list[variantIndex(tileX, tileY, list.length)]!;
-      blit(ctx, image, src, dx, dy);
+        case TileId.Beach:
+          blit(ctx, image, DIRT[v]!, dx, dy);
+          break;
 
-      if (tileId === TileId.Town) {
-        blit(ctx, image, HOUSE, dx, dy);
-      } else if (tileId === TileId.Castle) {
-        blit(ctx, image, CASTLE, dx, dy);
+        case TileId.Road:
+          blit(ctx, image, DIRT[v]!, dx, dy);
+          break;
+
+        case TileId.Bridge: {
+          const frame = OCEAN[oceanFrame]!;
+          blit(ctx, image, frame[v]!, dx, dy);
+          blit(ctx, image, DIRT[0]!, dx, dy);
+          // Plank lines
+          ctx.fillStyle = '#5a4030';
+          ctx.fillRect(dx + 2, dy + 4, 12, 1);
+          ctx.fillRect(dx + 2, dy + 8, 12, 1);
+          ctx.fillRect(dx + 2, dy + 12, 12, 1);
+          break;
+        }
+
+        case TileId.Town:
+          blit(ctx, image, GRASS[v]!, dx, dy);
+          blit(ctx, image, HOUSE, dx, dy);
+          break;
+
+        case TileId.Castle:
+          blit(ctx, image, GRASS[v]!, dx, dy);
+          blit(ctx, image, CASTLE, dx, dy);
+          break;
       }
     },
   };
 
   return new Promise((resolve, reject) => {
     image.onload = () => {
+      mountains = bakeMountains(image);
       ready = true;
       resolve(tileset);
     };
-    image.onerror = () => reject(new Error(`Failed to load tileset ${TILESET_URL}`));
+    image.onerror = () =>
+      reject(new Error(`Failed to load tileset ${TILESET_URL}`));
     image.src = TILESET_URL;
   });
 }

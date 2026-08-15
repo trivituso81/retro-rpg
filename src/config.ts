@@ -1,7 +1,7 @@
 /** All tunable constants in one place. */
 
-export const INTERNAL_WIDTH = 256;
-export const INTERNAL_HEIGHT = 224;
+export const INTERNAL_WIDTH = 512;
+export const INTERNAL_HEIGHT = 448;
 
 /** Fixed logic rate (Hz). */
 export const TICK_RATE = 60;
@@ -16,7 +16,8 @@ export const DEBUG_FPS = true;
 /** Minimum preferred integer scale; fall back to fractional below this. */
 export const MIN_INTEGER_SCALE = 2;
 
-export const TILE_SIZE = 16;
+/** 32×32 tiles at 512×448 ≈ same on-screen tile count as SNES 16×16 @ 256×224, with 4× pixel detail. */
+export const TILE_SIZE = 32;
 
 /** Ocean wave animation period (~500ms at 60Hz ≈ 30 frames). */
 export const OCEAN_FRAME_MS = 500;

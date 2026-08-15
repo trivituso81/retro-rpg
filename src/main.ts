@@ -51,7 +51,7 @@ function drawFps(target: Screen): void {
   if (!DEBUG_FPS) return;
   const { bufferCtx } = target;
   bufferCtx.fillStyle = '#ffffff';
-  bufferCtx.font = '8px monospace';
+  bufferCtx.font = '16px monospace';
   bufferCtx.textBaseline = 'top';
   bufferCtx.fillText(`${fpsDisplay} FPS`, 4, 4);
 }

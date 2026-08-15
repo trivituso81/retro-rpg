@@ -2,10 +2,6 @@
 
 Do not implement these in the prototype. Capture useful ideas here instead.
 
-## Possible later
+## Decisions / divergences
 
-- Real tileset.png swap (CC0 only — Kenney, OpenGameArt, itch.io free tilesets)
-- Sound / music
-- NPCs, dialogue, menus, inventory, combat
-- Day/night, weather, multi-map transitions
-- Settings screen
+- Internal resolution raised from SNES 256×224 to **512×448** with **32×32** tiles so the overworld reads as 16-bit on modern phone screens (same tile count on screen, 4× pixel detail per tile).

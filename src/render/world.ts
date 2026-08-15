@@ -9,7 +9,7 @@ import type { WorldMap } from '../world/map';
 
 /**
  * Draw visible tiles (+1 tile bleed) into the internal buffer.
- * At 256×224 that is ~17×15 tiles.
+ * At 512×448 with 32px tiles that is still ~17×15 tiles.
  */
 export function drawWorld(
   ctx: CanvasRenderingContext2D,

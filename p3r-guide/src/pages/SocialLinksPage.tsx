@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { socialLinks, socialStats } from '../data/socialLinks';
-import { Card, PageHeader, Badge, filterBy } from '../components/ui';
+import { Card, PageHeader, Badge, Anchor, filterBy } from '../components/ui';
 import { useStore } from '../lib/store';
 
 export function SocialLinksPage() {
@@ -48,7 +48,7 @@ export function SocialLinksPage() {
               <tr key={s.id}>
                 <td>{s.number}</td>
                 <td>
-                  <a href={`#${s.id}`}>{s.arcana}</a>
+                  <Anchor id={s.id}>{s.arcana}</Anchor>
                 </td>
                 <td>
                   {s.name} {s.romance && <Badge tone="red">Romance</Badge>}

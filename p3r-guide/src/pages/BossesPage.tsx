@@ -1,5 +1,5 @@
 import { fullMoonBosses } from '../data/bosses';
-import { Card, PageHeader, Badge, Affinities, Spoiler } from '../components/ui';
+import { Card, PageHeader, Badge, Anchor, Affinities, Spoiler } from '../components/ui';
 import { useStore } from '../lib/store';
 
 export function BossesPage() {
@@ -15,9 +15,9 @@ export function BossesPage() {
 
       <div className="section-tabs">
         {fullMoonBosses.map((b) => (
-          <a key={b.id} href={`#${b.id}`} className={`chip ${done.has(`boss:${b.id}`) ? 'active' : ''}`}>
+          <Anchor key={b.id} id={b.id} className={`chip ${done.has(`boss:${b.id}`) ? 'active' : ''}`}>
             {b.date} {b.arcana}
-          </a>
+          </Anchor>
         ))}
       </div>
 

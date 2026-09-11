@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { tartarusBlocks, monadPassages, tartarusBasics } from '../data/tartarus';
 import { missingPersons } from '../data/items';
-import { Card, PageHeader, Badge } from '../components/ui';
+import { Card, PageHeader, Badge, Anchor } from '../components/ui';
 
 export function TartarusPage() {
   return (
@@ -14,19 +14,19 @@ export function TartarusPage() {
 
       <div className="section-tabs">
         {tartarusBlocks.map((b) => (
-          <a key={b.id} href={`#${b.id}`} className="chip">
+          <Anchor key={b.id} id={b.id} className="chip">
             {b.name} ({b.floors[0]}–{b.floors[1]})
-          </a>
+          </Anchor>
         ))}
-        <a href="#monad" className="chip">
+        <Anchor id="monad" className="chip">
           Monad Passages
-        </a>
-        <a href="#missing" className="chip">
+        </Anchor>
+        <Anchor id="missing" className="chip">
           Missing persons
-        </a>
-        <a href="#basics" className="chip">
+        </Anchor>
+        <Anchor id="basics" className="chip">
           Basics
-        </a>
+        </Anchor>
       </div>
 
       <div className="grid cols-2" style={{ marginBottom: '1rem' }}>
@@ -82,7 +82,7 @@ export function TartarusPage() {
             )}
             {b.monadPassage && (
               <p className="small">
-                <strong>Monad Passage:</strong> <a href="#monad">{b.monadPassage}F</a>
+                <strong>Monad Passage:</strong> <Anchor id="monad">{b.monadPassage}F</Anchor>
               </p>
             )}
             <ul className="small" style={{ margin: 0 }}>

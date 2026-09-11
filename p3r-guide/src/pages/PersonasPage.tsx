@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { fusionSpells, heartItems, specialFusions, recommendedPersonas, fusionTips } from '../data/personas';
-import { Card, PageHeader, Badge, filterBy } from '../components/ui';
+import { Card, PageHeader, Badge, Anchor, filterBy } from '../components/ui';
 
 export function PersonasPage() {
   const [q, setQ] = useState('');
@@ -16,21 +16,21 @@ export function PersonasPage() {
       />
 
       <div className="section-tabs">
-        <a href="#fusion-spells" className="chip">
+        <Anchor id="fusion-spells" className="chip">
           Fusion Spells
-        </a>
-        <a href="#special" className="chip">
+        </Anchor>
+        <Anchor id="special" className="chip">
           Special fusions
-        </a>
-        <a href="#recommended" className="chip">
+        </Anchor>
+        <Anchor id="recommended" className="chip">
           Recommended Personas
-        </a>
-        <a href="#heart" className="chip">
+        </Anchor>
+        <Anchor id="heart" className="chip">
           Heart Items
-        </a>
-        <a href="#fusion-tips" className="chip">
+        </Anchor>
+        <Anchor id="fusion-tips" className="chip">
           Fusion tips
-        </a>
+        </Anchor>
       </div>
 
       <Card id="fusion-spells" title="Fusion Spells (protagonist Theurgies)">

@@ -1,6 +1,17 @@
 import { useState, type ReactNode } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useStore } from '../lib/store';
 import type { AffinityMap } from '../data/types';
+
+/** In-page anchor that works with HashRouter (a plain href="#id" would be treated as a route). */
+export function Anchor({ id, className, children }: { id: string; className?: string; children: ReactNode }) {
+  const { pathname } = useLocation();
+  return (
+    <Link to={`${pathname}#${id}`} className={className}>
+      {children}
+    </Link>
+  );
+}
 
 export function PageHeader({ eyebrow, title, lede }: { eyebrow: string; title: string; lede?: string }) {
   return (
@@ -98,7 +109,19 @@ export function Checklist({ prefix, items }: { prefix: string; items: { id: stri
   );
 }
 
-export function Chips<T extends string>({ options, value, onChange, allLabel = 'All' }: { options: T[]; value: T | null; onChange: (v: T | null) => void; allLabel?: string }) {
+export function Chips<T extends string>({
+  options,
+  value,
+  onChange,
+  allLabel = 'All',
+  label,
+}: {
+  options: T[];
+  value: T | null;
+  onChange: (v: T | null) => void;
+  allLabel?: string;
+  label?: (o: T) => string;
+}) {
   return (
     <div className="chip-row">
       <button type="button" className={`chip ${value === null ? 'active' : ''}`} onClick={() => onChange(null)}>
@@ -106,7 +129,7 @@ export function Chips<T extends string>({ options, value, onChange, allLabel = '
       </button>
       {options.map((o) => (
         <button key={o} type="button" className={`chip ${value === o ? 'active' : ''}`} onClick={() => onChange(o)}>
-          {o}
+          {label ? label(o) : o}
         </button>
       ))}
     </div>

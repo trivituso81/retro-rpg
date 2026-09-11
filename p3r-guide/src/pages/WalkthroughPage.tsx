@@ -67,7 +67,7 @@ export function WalkthroughPage() {
 
       <Card title="Calendar">
         <div className="controls">
-          <Chips options={kinds} value={kind} onChange={setKind} />
+          <Chips options={kinds} value={kind} onChange={setKind} label={(k) => kindLabel[k]} />
         </div>
         <div className="timeline">
           {events.map((e, i) => {

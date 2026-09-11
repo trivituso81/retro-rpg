@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { items, shops } from '../data/items';
 import type { Item } from '../data/types';
-import { Card, PageHeader, Chips, filterBy } from '../components/ui';
+import { Card, PageHeader, Chips, Anchor, filterBy } from '../components/ui';
 
 const categories = Array.from(new Set(items.map((i) => i.category))) as Item['category'][];
 
@@ -21,12 +21,12 @@ export function ItemsPage() {
       />
 
       <div className="section-tabs">
-        <a href="#items" className="chip">
+        <Anchor id="items" className="chip">
           Items
-        </a>
-        <a href="#shops" className="chip">
+        </Anchor>
+        <Anchor id="shops" className="chip">
           Shops & services
-        </a>
+        </Anchor>
       </div>
 
       <Card id="items" title="Items">

@@ -2,6 +2,10 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { StoreProvider } from './lib/store';
 import { HomePage } from './pages/HomePage';
+import { GuideHubPage } from './pages/GuideHubPage';
+import { PartyHubPage } from './pages/PartyHubPage';
+import { ToolsHubPage } from './pages/ToolsHubPage';
+import { MoreHubPage } from './pages/MoreHubPage';
 import { WalkthroughPage } from './pages/WalkthroughPage';
 import { TartarusPage } from './pages/TartarusPage';
 import { BossesPage } from './pages/BossesPage';
@@ -23,6 +27,10 @@ export function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<HomePage />} />
+            <Route path="/guide" element={<GuideHubPage />} />
+            <Route path="/party" element={<PartyHubPage />} />
+            <Route path="/tools" element={<ToolsHubPage />} />
+            <Route path="/more" element={<MoreHubPage />} />
             <Route path="/walkthrough" element={<WalkthroughPage />} />
             <Route path="/walkthrough/:month" element={<WalkthroughPage />} />
             <Route path="/tartarus" element={<TartarusPage />} />

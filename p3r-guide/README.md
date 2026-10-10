@@ -22,10 +22,11 @@ An unofficial, self-contained fan guide for **Persona 3 Reload**, built with Vit
 
 ## Features
 
+- Phone-first shell: bottom tabs (Home · Guide · Party · Tools · More), iOS-style back navigation, and grouped lists that show what each section contains
 - Global search (`Ctrl/Cmd + K` or `/`) across all guide data
-- Spoiler toggle that blurs story spoilers until revealed (persisted)
+- Spoiler toggle that blurs story spoilers until revealed (persisted; also under More)
 - Checklists for bosses, Social Links, Linked Episodes and requests saved in `localStorage`
-- Responsive layout with a collapsible sidebar; hash-based routing so the built site works from any static host or `file://`
+- Hash-based routing so the built site works from any static host or `file://`
 
 ## Development
 

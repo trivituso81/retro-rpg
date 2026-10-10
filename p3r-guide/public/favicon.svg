@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <!-- Moon surface gradient -->
+    <radialGradient id="moon" cx="40%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#e0f2fe"/>
+      <stop offset="60%" stop-color="#93c5fd"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </radialGradient>
+    <!-- Subtle glow behind moon -->
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1d4ed8" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#1d4ed8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Deep night-sky background -->
+  <rect width="32" height="32" rx="5" fill="#050b1f"/>
+
+  <!-- Moon glow halo -->
+  <circle cx="16" cy="13" r="12" fill="url(#glow)"/>
+
+  <!-- Full moon -->
+  <circle cx="16" cy="13" r="9" fill="url(#moon)"/>
+
+  <!-- Subtle crater detail -->
+  <circle cx="13" cy="10" r="1.8" fill="#bfdbfe" opacity="0.25"/>
+  <circle cx="19" cy="15" r="1.2" fill="#bfdbfe" opacity="0.2"/>
+  <circle cx="14" cy="16" r="0.8" fill="#bfdbfe" opacity="0.15"/>
+
+  <!-- Tartarus tower silhouette (coffin/obelisk shape):
+       wide hexagonal shoulders narrowing to a point at top,
+       rectangular body, slightly narrowed base -->
+  <path d="
+    M16,4
+    L20,8 L20,27
+    L12,27 L12,8
+    Z
+  " fill="#020912"/>
+  <!-- Bevel the shoulder edges for the coffin look -->
+  <path d="
+    M16,4
+    L19.5,8 L19.5,27
+    L12.5,27 L12.5,8
+    Z
+  " fill="#030d1e"/>
+  <!-- Window slit  glows faintly, suggests life inside -->
+  <rect x="14.5" y="13" width="3" height="5" rx="0.5" fill="#0ea5e9" opacity="0.55"/>
+  <rect x="14.5" y="13" width="3" height="5" rx="0.5" fill="white" opacity="0.12"/>
+
+  <!-- Stars -->
+  <circle cx="5"  cy="6"  r="0.8" fill="white" opacity="0.65"/>
+  <circle cx="27" cy="5"  r="0.65" fill="white" opacity="0.5"/>
+  <circle cx="29" cy="20" r="0.55" fill="white" opacity="0.45"/>
+  <circle cx="4"  cy="23" r="0.7" fill="white" opacity="0.55"/>
+  <circle cx="26" cy="27" r="0.5" fill="white" opacity="0.4"/>
+</svg>

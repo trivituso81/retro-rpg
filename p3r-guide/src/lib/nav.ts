@@ -18,7 +18,7 @@ export const guideItems: ListItem[] = [
     to: '/walkthrough',
     title: 'Walkthrough',
     subtitle: 'Month-by-month calendar, deadlines, and story beats',
-    meta: '12 months',
+    meta: '10 months',
   },
   {
     to: '/tartarus',
@@ -30,7 +30,7 @@ export const guideItems: ListItem[] = [
     to: '/bosses',
     title: 'Full Moon Bosses',
     subtitle: 'Affinities, phases, and strategies',
-    meta: '12 ops',
+    meta: '10 ops',
   },
 ];
 

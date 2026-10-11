@@ -1,33 +1,28 @@
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { characters, npcs } from '../data/characters';
 import { Card, PageHeader, Badge, Spoiler } from '../components/ui';
+import { ListLink, ListSection } from '../components/List';
 
 export function CharactersPage() {
   const groups = Array.from(new Set(npcs.map((n) => n.group)));
   return (
     <>
       <PageHeader eyebrow="Party" title="Characters" lede="The Specialized Extracurricular Execution Squad and the people around them." />
-      <h2 style={{ marginBottom: '0.8rem' }}>S.E.E.S.</h2>
-      <div className="grid cols-3" style={{ marginBottom: '1.5rem' }}>
+      <ListSection header="S.E.E.S.">
         {characters.map((c) => (
-          <Link key={c.id} to={`/characters/${c.id}`} className="tile">
-            <div className="card-title" style={{ marginBottom: '0.3rem' }}>
-              <h3 style={{ margin: 0 }}>{c.name}</h3>
-              <Badge tone="gold">{c.arcana}</Badge>
-            </div>
-            <p>
-              {c.role} · {c.persona}
-              {c.evolvedPersona ? ` → ${c.evolvedPersona}` : ''}
-            </p>
-            <p style={{ marginTop: '0.4rem' }}>
-              <span className="badge grey">{c.weapon}</span> <span className="badge grey">{c.element}</span>
-            </p>
-            <p style={{ marginTop: '0.4rem' }}>Joins: {c.joins}</p>
-          </Link>
+          <ListLink
+            key={c.id}
+            item={{
+              to: `/characters/${c.id}`,
+              title: c.name,
+              subtitle: `${c.role} · ${c.persona}${c.evolvedPersona ? ` → ${c.evolvedPersona}` : ''} · Joins ${c.joins}`,
+              meta: c.arcana,
+            }}
+          />
         ))}
-      </div>
+      </ListSection>
 
-      <h2 id="npcs" style={{ marginBottom: '0.8rem' }}>
+      <h2 id="npcs" className="list-header" style={{ marginTop: '0.5rem' }}>
         Supporting cast
       </h2>
       {groups.map((g) => (

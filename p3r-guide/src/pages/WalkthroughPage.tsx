@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { walkthrough } from '../data/walkthrough';
 import type { WalkthroughEvent } from '../data/types';
 import { Card, PageHeader, Spoiler, Chips } from '../components/ui';
+import { ListLink, ListSection } from '../components/List';
 import { useStore } from '../lib/store';
 
 const kinds: WalkthroughEvent['kind'][] = ['story', 'fullmoon', 'deadline', 'social', 'linked', 'exam', 'tartarus', 'tip'];
@@ -17,14 +18,38 @@ const kindLabel: Record<WalkthroughEvent['kind'], string> = {
   tip: 'Tip',
 };
 
+function MonthIndex() {
+  return (
+    <>
+      <header className="large-title">
+        <h1>Walkthrough</h1>
+        <p className="lede">Pick a month. Each page covers objectives, Tartarus goals, Social Link focus, and the day-by-day calendar.</p>
+      </header>
+      <ListSection header="The school year">
+        {walkthrough.map((m) => (
+          <ListLink
+            key={m.id}
+            item={{
+              to: `/walkthrough/${m.id}`,
+              title: `${m.name} ${m.year}`,
+              subtitle: m.summary,
+              meta: `${m.events.length} events`,
+            }}
+          />
+        ))}
+      </ListSection>
+    </>
+  );
+}
+
 export function WalkthroughPage() {
   const { month } = useParams();
   const { spoilers } = useStore();
   const [kind, setKind] = useState<WalkthroughEvent['kind'] | null>(null);
 
-  if (!month) return <Navigate to={`/walkthrough/${walkthrough[0].id}`} replace />;
+  if (!month) return <MonthIndex />;
   const data = walkthrough.find((m) => m.id === month);
-  if (!data) return <Navigate to={`/walkthrough/${walkthrough[0].id}`} replace />;
+  if (!data) return <Navigate to="/walkthrough" replace />;
 
   const idx = walkthrough.indexOf(data);
   const prev = walkthrough[idx - 1];
@@ -35,10 +60,10 @@ export function WalkthroughPage() {
     <>
       <PageHeader eyebrow="Walkthrough" title={`${data.name} ${data.year}`} lede={data.summary} />
 
-      <div className="month-tabs">
+      <div className="month-tabs" role="navigation" aria-label="Months">
         {walkthrough.map((m) => (
           <Link key={m.id} to={`/walkthrough/${m.id}`} className={`chip ${m.id === data.id ? 'active' : ''}`}>
-            {m.name}
+            {m.name.slice(0, 3)}
           </Link>
         ))}
       </div>

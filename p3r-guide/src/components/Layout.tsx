@@ -1,53 +1,19 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import { SearchModal } from './SearchModal';
+import { TabBar } from './TabBar';
 import { useStore } from '../lib/store';
-
-const nav: { label: string; items: { to: string; icon: string; text: string }[] }[] = [
-  {
-    label: 'Guide',
-    items: [
-      { to: '/', icon: '◉', text: 'Overview' },
-      { to: '/walkthrough', icon: '▤', text: 'Walkthrough' },
-      { to: '/tartarus', icon: '▲', text: 'Tartarus' },
-      { to: '/bosses', icon: '☾', text: 'Full Moon Bosses' },
-    ],
-  },
-  {
-    label: 'Party',
-    items: [
-      { to: '/characters', icon: '✦', text: 'Characters' },
-      { to: '/social-links', icon: '☍', text: 'Social Links' },
-      { to: '/linked-episodes', icon: '⚭', text: 'Linked Episodes' },
-      { to: '/personas', icon: '◈', text: 'Personas & Fusion' },
-    ],
-  },
-  {
-    label: 'Database',
-    items: [
-      { to: '/items', icon: '⬢', text: 'Items & Shops' },
-      { to: '/equipment', icon: '⚔', text: 'Equipment' },
-      { to: '/requests', icon: '✓', text: 'Elizabeth Requests' },
-      { to: '/school', icon: '✎', text: 'Class & Exam Answers' },
-    ],
-  },
-  {
-    label: 'Extras',
-    items: [
-      { to: '/tips', icon: '☆', text: 'Tips & Strategy' },
-      { to: '/secrets', icon: '♆', text: 'Secrets' },
-    ],
-  },
-];
+import { isTabRoot, pageTitle, parentPath } from '../lib/nav';
 
 export function Layout() {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { spoilers, setSpoilers } = useStore();
   const location = useLocation();
+  const back = parentPath(location.pathname);
+  const title = pageTitle(location.pathname);
+  const tabRoot = isTabRoot(location.pathname);
 
   useEffect(() => {
-    setMenuOpen(false);
     if (location.hash) {
       const id = location.hash.slice(1);
       requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: 'start' }));
@@ -62,7 +28,7 @@ export function Layout() {
         e.preventDefault();
         setSearchOpen((o) => !o);
       }
-      if (e.key === '/' && !searchOpen && !(e.target instanceof HTMLInputElement)) {
+      if (e.key === '/' && !searchOpen && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
         e.preventDefault();
         setSearchOpen(true);
       }
@@ -72,60 +38,45 @@ export function Layout() {
   }, [searchOpen]);
 
   return (
-    <div className="app">
-      <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
-        <NavLink to="/" className="brand">
-          <div className="brand-mark" />
-          <div>
-            <div className="brand-title">Persona 3 Reload</div>
-            <div className="brand-sub">Complete Guide</div>
-          </div>
-        </NavLink>
-        {nav.map((group) => (
-          <nav key={group.label} className="nav-group" aria-label={group.label}>
-            <div className="nav-label">{group.label}</div>
-            {group.items.map((item) => (
-              <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-                <span className="nav-icon" aria-hidden>
-                  {item.icon}
-                </span>
-                {item.text}
-              </NavLink>
-            ))}
-          </nav>
-        ))}
-        <div className="sidebar-footer">
-          <span>Unofficial fan guide. Persona 3 Reload © ATLUS / SEGA.</span>
-          <span>Progress and spoiler settings are saved in this browser.</span>
+    <div className="app-shell">
+      <header className={`navbar ${tabRoot ? 'root' : 'nested'}`}>
+        <div className="navbar-leading">
+          {back ? (
+            <Link to={back.to} className="nav-back" aria-label={`Back to ${back.label}`}>
+              <span aria-hidden className="nav-back-chevron">
+                ‹
+              </span>
+              <span className="nav-back-label">{back.label}</span>
+            </Link>
+          ) : (
+            <span className="navbar-brand">P3 Reload</span>
+          )}
         </div>
-      </aside>
-
-      <div className="main">
-        <div className="topbar">
-          <button type="button" className="menu-btn" onClick={() => setMenuOpen((o) => !o)} aria-label="Toggle navigation">
-            ☰
-          </button>
-          <button type="button" className="search-btn" onClick={() => setSearchOpen(true)}>
-            <span aria-hidden>⌕</span>
-            <span>Search the guide…</span>
-            <span className="kbd">Ctrl K</span>
+        {!tabRoot && <div className="navbar-title">{title}</div>}
+        <div className="navbar-trailing">
+          <button type="button" className="icon-btn" onClick={() => setSearchOpen(true)} aria-label="Search">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
           </button>
           <button
             type="button"
-            className={`toggle ${spoilers ? 'on' : ''}`}
+            className={`spoiler-chip ${spoilers ? 'on' : ''}`}
             onClick={() => setSpoilers(!spoilers)}
-            title="Show or hide story spoilers across the guide"
+            title="Show or hide story spoilers"
+            aria-pressed={spoilers}
           >
-            <span className="dot" />
-            {spoilers ? 'Spoilers shown' : 'Spoilers hidden'}
+            {spoilers ? 'Spoilers on' : 'Spoilers off'}
           </button>
         </div>
-        <main className="content">
-          <Outlet />
-        </main>
-      </div>
+      </header>
 
-      {menuOpen && <div className="modal-backdrop" style={{ zIndex: 30 }} onClick={() => setMenuOpen(false)} />}
+      <main className="app-content">
+        <Outlet />
+      </main>
+
+      <TabBar pathname={location.pathname} />
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   );

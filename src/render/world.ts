@@ -6,11 +6,11 @@ import {
 } from '../config';
 import type { Camera } from './camera';
 import type { Tileset } from './tileset';
-import { drawLandmarkSprite, isLandmarkCoverage } from '../world/landmarks';
+import { isLandmarkCoverage } from '../world/landmarks';
 import type { WorldMap } from '../world/map';
 
 /**
- * Draw visible tiles (+1 tile bleed), then 2×2 landmark overlays.
+ * Draw visible tiles, then village building overlays.
  */
 export function drawWorld(
   ctx: CanvasRenderingContext2D,
@@ -38,17 +38,18 @@ export function drawWorld(
     }
   }
 
-  for (const lm of map.landmarks) {
+  for (const b of map.buildings) {
     if (
-      lm.x + 2 < startTX ||
-      lm.y + 2 < startTY ||
-      lm.x > endTX ||
-      lm.y > endTY
+      b.x + b.w < startTX ||
+      b.y + b.h < startTY ||
+      b.x > endTX ||
+      b.y > endTY
     ) {
       continue;
     }
-    const dx = lm.x * TILE_SIZE - cam.x;
-    const dy = lm.y * TILE_SIZE - cam.y;
-    drawLandmarkSprite(ctx, tileset.landmarks, lm.kind, dx, dy);
+    const dx = b.x * TILE_SIZE - cam.x;
+    const dy = b.y * TILE_SIZE - cam.y;
+    const sprite = tileset.buildings[b.kind];
+    ctx.drawImage(sprite, dx, dy);
   }
 }

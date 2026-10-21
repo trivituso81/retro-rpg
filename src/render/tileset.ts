@@ -20,11 +20,16 @@ import {
   bakeLandmarks,
   type LandmarkSprites,
 } from '../world/landmarks';
+import {
+  bakeBuildingSprites,
+  type BuildingSprites,
+} from '../village/buildings';
 import type { WorldMap } from '../world/map';
 
 export type Tileset = {
   image: HTMLImageElement;
   landmarks: LandmarkSprites;
+  buildings: BuildingSprites;
   ready: boolean;
   tick(nowMs: number): void;
   drawTile(
@@ -233,12 +238,17 @@ export function createTileset(): Promise<Tileset> {
   let ready = false;
   let mountains: HTMLCanvasElement | null = null;
   let landmarkSprites: LandmarkSprites | null = null;
+  let buildingSprites: BuildingSprites | null = null;
 
   const tileset: Tileset = {
     image,
     get landmarks() {
       if (!landmarkSprites) throw new Error('landmarks not ready');
       return landmarkSprites;
+    },
+    get buildings() {
+      if (!buildingSprites) throw new Error('buildings not ready');
+      return buildingSprites;
     },
     get ready() {
       return ready;
@@ -372,6 +382,7 @@ export function createTileset(): Promise<Tileset> {
     image.onload = () => {
       mountains = bakeMountains(image);
       landmarkSprites = bakeLandmarks(image);
+      buildingSprites = bakeBuildingSprites(image);
       ready = true;
       resolve(tileset);
     };

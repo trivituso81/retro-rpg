@@ -5,12 +5,13 @@ import {
   MAP_HEIGHT,
   MAP_WIDTH,
   SAVE_DEBOUNCE_MS,
+  SAVE_KEY,
   type Facing,
 } from '../config';
 import type { Player } from '../entity/player';
 import type { WorldMap } from '../world/map';
 
-export const SAVE_KEY = 'overworld.save.v1';
+export { SAVE_KEY };
 
 const FACINGS: readonly Facing[] = ['down', 'up', 'left', 'right'];
 

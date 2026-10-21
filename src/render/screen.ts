@@ -18,6 +18,8 @@ export type Screen = {
   destY: number;
   destW: number;
   destH: number;
+  /** True when using phone cover scaling. */
+  isMobileCover: boolean;
 };
 
 function disableSmoothing(ctx: CanvasRenderingContext2D): void {
@@ -51,6 +53,7 @@ export function createScreen(canvas: HTMLCanvasElement): Screen {
     destY: 0,
     destW: INTERNAL_WIDTH,
     destH: INTERNAL_HEIGHT,
+    isMobileCover: false,
   };
 
   resizeScreen(screen);
@@ -65,11 +68,18 @@ function viewportCssSize(): { cssW: number; cssH: number } {
   return { cssW: window.innerWidth, cssH: window.innerHeight };
 }
 
+/** Coarse pointer / no-hover ≈ phone or iPad. */
+export function isTouchPrimary(): boolean {
+  if (window.matchMedia('(hover: none)').matches) return true;
+  if (window.matchMedia('(pointer: coarse)').matches) return true;
+  return navigator.maxTouchPoints > 1 && window.innerWidth < 1100;
+}
+
 /**
  * Scale the internal buffer into the viewport.
- * - Desktop / landscape: contain (letterbox), prefer near-integer scale.
- * - Phone / portrait: cover (fill the screen, crop edges) so the world
- *   isn't a tiny band with huge black bars.
+ * - Desktop: contain (letterbox), prefer near-integer scale.
+ * - iPhone / portrait: cover (fill the screen), bias crop upward so the
+ *   dialogue strip near the bottom stays on-screen above thumb controls.
  */
 export function resizeScreen(screen: Screen): void {
   const dpr = window.devicePixelRatio || 1;
@@ -89,8 +99,11 @@ export function resizeScreen(screen: Screen): void {
   const contain = Math.min(fitX, fitY);
   const cover = Math.max(fitX, fitY);
 
-  // Narrow / tall phones: fill the whole screen (cover). Wide desktop: contain.
-  const useCover = cssW < 900 || cssH / cssW > 1.1;
+  const touch = isTouchPrimary();
+  const portraitish = cssH / Math.max(1, cssW) > 1.05;
+  const useCover = touch || cssW < 900 || portraitish;
+  screen.isMobileCover = useCover && touch;
+
   let scale = useCover ? cover : contain;
 
   if (!useCover) {
@@ -105,8 +118,18 @@ export function resizeScreen(screen: Screen): void {
 
   const destW = Math.round(INTERNAL_WIDTH * scale);
   const destH = Math.round(INTERNAL_HEIGHT * scale);
-  const destX = Math.floor((screen.display.width - destW) / 2);
-  const destY = Math.floor((screen.display.height - destH) / 2);
+  let destX = Math.floor((screen.display.width - destW) / 2);
+  let destY = Math.floor((screen.display.height - destH) / 2);
+
+  // Portrait cover: bias upward so more of the bottom (dialogue) stays visible
+  // above the home indicator / thumb controls.
+  if (useCover && portraitish && destH > screen.display.height) {
+    const overflowY = destH - screen.display.height;
+    destY = -Math.floor(overflowY * 0.28);
+  }
+  if (useCover && destW > screen.display.width) {
+    destX = Math.floor((screen.display.width - destW) / 2);
+  }
 
   screen.scale = scale;
   screen.destX = destX;

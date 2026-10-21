@@ -108,8 +108,11 @@ talkBtn.addEventListener('pointercancel', clearTalkPress);
 talkBtn.addEventListener('pointerleave', clearTalkPress);
 
 /** Keep DOM chrome in sync with dialogue (iPhone NEXT bar, hide D-pad). */
+let chromeOpen: boolean | null = null;
 function syncDialogueChrome(): void {
   const open = dialogue.active;
+  if (chromeOpen === open) return;
+  chromeOpen = open;
   document.body.classList.toggle('dialogue-open', open);
   talkBtn.textContent = open ? 'NEXT' : 'TALK';
   talkBtn.setAttribute('aria-label', open ? 'Next' : 'Talk');
@@ -321,6 +324,7 @@ function drawActors(): void {
 }
 
 function render(): void {
+  syncDialogueChrome();
   clearBuffer(screen);
   if (tileset?.ready) {
     tileset.tick(nowMs);

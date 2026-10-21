@@ -1,5 +1,4 @@
 import {
-  LANDMARK_SIZE,
   MAP_HEIGHT,
   MAP_WIDTH,
   PASSABLE,
@@ -8,11 +7,13 @@ import {
   type TileIdValue,
 } from '../config';
 import {
-  isLandmarkTile,
-  kindFromTile,
-  type Landmark,
-} from './landmarks';
-import { MAP_ROWS } from './mapdata';
+  blocksTile,
+  VILLAGE_BUILDINGS,
+  type Building,
+} from '../village/buildings';
+import { VILLAGE_ROWS } from '../village/mapdata';
+import { VILLAGE_NPCS } from '../village/npcs';
+import type { Landmark } from './landmarks';
 
 export type WorldMap = {
   width: number;
@@ -20,24 +21,32 @@ export type WorldMap = {
   tiles: Uint8Array;
   collision: Uint8Array;
   landmarks: readonly Landmark[];
+  buildings: readonly Building[];
   getTile(x: number, y: number): TileIdValue;
   isPassable(x: number, y: number): boolean;
   inBounds(x: number, y: number): boolean;
 };
 
+/** Extra village chars mapped onto overworld tile ids. */
+const VILLAGE_CHAR: Record<string, TileIdValue> = {
+  ...TILE_CHAR,
+  '#': TileId.Forest,
+  f: TileId.Forest,
+  w: TileId.Grass,
+};
+
 function parseMap(): WorldMap {
-  if (MAP_ROWS.length !== MAP_HEIGHT) {
+  if (VILLAGE_ROWS.length !== MAP_HEIGHT) {
     throw new Error(
-      `Map height ${MAP_ROWS.length} !== expected ${MAP_HEIGHT}`,
+      `Map height ${VILLAGE_ROWS.length} !== expected ${MAP_HEIGHT}`,
     );
   }
 
   const tiles = new Uint8Array(MAP_WIDTH * MAP_HEIGHT);
   const collision = new Uint8Array(MAP_WIDTH * MAP_HEIGHT);
-  const landmarks: Landmark[] = [];
 
   for (let y = 0; y < MAP_HEIGHT; y++) {
-    const row = MAP_ROWS[y]!;
+    const row = VILLAGE_ROWS[y]!;
     if (row.length !== MAP_WIDTH) {
       throw new Error(
         `Map row ${y} length ${row.length} !== expected ${MAP_WIDTH}`,
@@ -45,7 +54,7 @@ function parseMap(): WorldMap {
     }
     for (let x = 0; x < MAP_WIDTH; x++) {
       const ch = row[x]!;
-      const id = TILE_CHAR[ch];
+      const id = VILLAGE_CHAR[ch];
       if (id === undefined) {
         throw new Error(`Unknown map char '${ch}' at (${x},${y})`);
       }
@@ -55,42 +64,24 @@ function parseMap(): WorldMap {
     }
   }
 
-  // Collect 2×2 landmark anchors and clear the other three cells to grass
-  // (the sprite covers them). Collision: castle solid; town/cave enterable.
-  for (let y = 0; y < MAP_HEIGHT; y++) {
-    for (let x = 0; x < MAP_WIDTH; x++) {
-      const id = tiles[y * MAP_WIDTH + x]! as TileIdValue;
-      if (!isLandmarkTile(id)) continue;
-      const kind = kindFromTile(id)!;
-      if (x + LANDMARK_SIZE > MAP_WIDTH || y + LANDMARK_SIZE > MAP_HEIGHT) {
-        throw new Error(`Landmark ${kind} at (${x},${y}) does not fit 2×2`);
+  // Buildings block their footprint.
+  for (const b of VILLAGE_BUILDINGS) {
+    for (let oy = 0; oy < b.h; oy++) {
+      for (let ox = 0; ox < b.w; ox++) {
+        const tx = b.x + ox;
+        const ty = b.y + oy;
+        if (tx < 0 || ty < 0 || tx >= MAP_WIDTH || ty >= MAP_HEIGHT) continue;
+        collision[ty * MAP_WIDTH + tx] = 1;
+        // Keep grass under buildings for any peek-through
+        tiles[ty * MAP_WIDTH + tx] = TileId.Grass;
       }
-      landmarks.push({
-        kind,
-        x,
-        y,
-        destination: `${kind}-${x}-${y}`,
-      });
+    }
+  }
 
-      for (let oy = 0; oy < LANDMARK_SIZE; oy++) {
-        for (let ox = 0; ox < LANDMARK_SIZE; ox++) {
-          if (ox === 0 && oy === 0) continue;
-          const i = (y + oy) * MAP_WIDTH + (x + ox);
-          tiles[i] = TileId.Grass;
-          // Castle walls block; town/cave keep passable grass under sprite
-          // except we mark castle footprint blocked.
-          if (kind === 'castle') {
-            collision[i] = 1;
-          } else {
-            collision[i] = 0;
-          }
-        }
-      }
-      // Castle: whole footprint blocked (enter later via warp trigger).
-      // Town/cave: passable so the player can step onto the entrance.
-      if (kind === 'castle') {
-        collision[y * MAP_WIDTH + x] = 1;
-      }
+  // NPCs occupy a tile (solid while standing there).
+  for (const n of VILLAGE_NPCS) {
+    if (n.tileX >= 0 && n.tileY >= 0 && n.tileX < MAP_WIDTH && n.tileY < MAP_HEIGHT) {
+      collision[n.tileY * MAP_WIDTH + n.tileX] = 1;
     }
   }
 
@@ -99,16 +90,18 @@ function parseMap(): WorldMap {
     height: MAP_HEIGHT,
     tiles,
     collision,
-    landmarks,
+    landmarks: [],
+    buildings: VILLAGE_BUILDINGS,
     inBounds(x, y) {
       return x >= 0 && y >= 0 && x < MAP_WIDTH && y < MAP_HEIGHT;
     },
     getTile(x, y) {
-      if (!this.inBounds(x, y)) return TileId.Ocean;
+      if (!this.inBounds(x, y)) return TileId.Forest;
       return tiles[y * MAP_WIDTH + x]! as TileIdValue;
     },
     isPassable(x, y) {
       if (!this.inBounds(x, y)) return false;
+      if (blocksTile(this.buildings, x, y)) return false;
       return collision[y * MAP_WIDTH + x] === 0;
     },
   };

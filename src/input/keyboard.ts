@@ -16,6 +16,17 @@ const KEY_TO_DIR: Record<string, Facing> = {
   D: 'right',
 };
 
+const CONFIRM_KEYS = new Set([
+  ' ',
+  'Enter',
+  'z',
+  'Z',
+  'e',
+  'E',
+  'x',
+  'X',
+]);
+
 /**
  * Keyboard → input state. Last pressed direction wins while held;
  * releasing falls back to any other still-held key.
@@ -30,6 +41,13 @@ export function bindKeyboard(input: InputState): () => void {
   };
 
   const onDown = (e: KeyboardEvent) => {
+    if (CONFIRM_KEYS.has(e.key)) {
+      if (!e.repeat) {
+        e.preventDefault();
+        input.confirmPressed = true;
+      }
+      return;
+    }
     const dir = KEY_TO_DIR[e.key];
     if (!dir) return;
     e.preventDefault();

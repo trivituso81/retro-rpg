@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1"
     />
-    <title>Overworld</title>
+    <title>Tom's Village</title>
     <style>
       html,
       body {
@@ -30,7 +30,7 @@
         image-rendering: crisp-edges;
       }
 
-      /* Virtual D-pad — bottom-left over the game / safe area */
+      /* Virtual D-pad — bottom-left */
       #dpad {
         position: fixed;
         left: max(16px, env(safe-area-inset-left, 0px));
@@ -58,7 +58,6 @@
         pointer-events: none;
       }
 
-      /* Cross shape hint */
       #dpad::before {
         width: 36px;
         height: 100%;
@@ -93,9 +92,50 @@
         background: rgba(255, 255, 255, 0.45);
       }
 
+      /* Talk / confirm — bottom-right */
+      #btn-talk {
+        position: fixed;
+        right: max(20px, env(safe-area-inset-right, 0px));
+        bottom: calc(36px + env(safe-area-inset-bottom, 0px));
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 230, 160, 0.55);
+        background: rgba(80, 50, 20, 0.55);
+        color: #ffe8a0;
+        font: 700 14px "Courier New", monospace;
+        letter-spacing: 0.04em;
+        touch-action: none;
+        z-index: 10;
+        -webkit-user-select: none;
+        user-select: none;
+        box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+      }
+
+      #btn-talk:active,
+      #btn-talk[data-pressed='1'] {
+        transform: translateY(2px);
+        box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+        background: rgba(120, 80, 30, 0.7);
+      }
+
+      #hint {
+        position: fixed;
+        left: 50%;
+        top: calc(10px + env(safe-area-inset-top, 0px));
+        transform: translateX(-50%);
+        color: rgba(255, 240, 200, 0.75);
+        font: 12px "Courier New", monospace;
+        text-align: center;
+        pointer-events: none;
+        z-index: 10;
+        text-shadow: 0 1px 2px #000;
+        white-space: nowrap;
+      }
+
       @media (min-width: 900px) {
-        /* Hide pad on wide desktop; keyboard is enough */
-        #dpad {
+        #dpad,
+        #btn-talk {
           display: none;
         }
       }
@@ -103,9 +143,11 @@
   </head>
   <body>
     <canvas id="game"></canvas>
+    <div id="hint">Arrows / WASD move · Space / E talk</div>
     <div id="dpad" aria-hidden="true">
       <div id="dpad-knob"></div>
     </div>
+    <button id="btn-talk" type="button" aria-label="Talk">TALK</button>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

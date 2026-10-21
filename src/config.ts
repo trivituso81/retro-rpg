@@ -11,7 +11,7 @@ export const TICK_MS = 1000 / TICK_RATE;
 export const MAX_FRAME_DELTA_MS = 100;
 
 /** Show FPS counter in the corner when true. */
-export const DEBUG_FPS = true;
+export const DEBUG_FPS = false;
 
 /** Minimum preferred integer scale; fall back to fractional below this. */
 export const MIN_INTEGER_SCALE = 2;
@@ -108,16 +108,25 @@ export const PASSABLE: Record<TileIdValue, boolean> = {
 /** Landmark footprint is always 2×2 tiles (NW anchor in map data). */
 export const LANDMARK_SIZE = 2;
 
-export const MAP_WIDTH = 64;
-export const MAP_HEIGHT = 56;
+/** Village PoC map size (see village/mapdata.ts). */
+export const MAP_WIDTH = 40;
+export const MAP_HEIGHT = 30;
 
 export const TILESET_URL = '/tiles/punyworld-overworld-tileset.png';
 
-/** Player sprite size (feet at bottom of sprite). */
-export const SPRITE_WIDTH = 16;
-export const SPRITE_HEIGHT = 24;
+/** Tom (player) sprite size — sourced from the attached sheet. */
+export const SPRITE_WIDTH = 32;
+export const SPRITE_HEIGHT = 48;
 /** Draw sprite this many px above the tile origin for depth. */
-export const SPRITE_Y_OFFSET = 8;
+export const SPRITE_Y_OFFSET = 32;
+
+/** Compact procedural NPC sprites (drawn 2× in-world). */
+export const NPC_SPRITE_WIDTH = 16;
+export const NPC_SPRITE_HEIGHT = 24;
+export const NPC_DRAW_SCALE = 2;
+export const NPC_SPRITE_Y_OFFSET = 16;
+
+export const TOM_SPRITE_URL = '/sprites/tom.png';
 
 /** Frames to face a new direction before stepping (Dragon Quest feel). Set 0 to disable. */
 export const TURN_FRAMES = 6;
@@ -130,10 +139,13 @@ export const STUMBLE_FRAMES = 4;
 
 export type Facing = 'down' | 'up' | 'left' | 'right';
 
-/** Default spawn (tile coords) — road south of the mountain-pass town. */
-export const DEFAULT_SPAWN_X = 32;
-export const DEFAULT_SPAWN_Y = 24;
+/** Default spawn — village square, south of the well. */
+export const DEFAULT_SPAWN_X = 20;
+export const DEFAULT_SPAWN_Y = 16;
 export const DEFAULT_FACING: Facing = 'down';
+
+/** Save key bumped for village PoC (old overworld saves ignored). */
+export const SAVE_KEY = 'tom.village.save.v1';
 
 /** Debounce for localStorage writes after a step lands. */
 export const SAVE_DEBOUNCE_MS = 400;

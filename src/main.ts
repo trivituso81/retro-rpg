@@ -4,8 +4,12 @@ import {
   DEFAULT_SPAWN_X,
   DEFAULT_SPAWN_Y,
   MAX_FRAME_DELTA_MS,
+  NPC_DRAW_SCALE,
+  NPC_SPRITE_WIDTH,
+  NPC_SPRITE_Y_OFFSET,
   RESET_TAP_WINDOW_MS,
   RESET_ZONE_SIZE,
+  TILE_SIZE,
   TICK_MS,
 } from './config';
 import {
@@ -14,10 +18,11 @@ import {
   playerDrawPos,
   updatePlayer,
 } from './entity/player';
-import { createInputState } from './input/input';
+import { consumeConfirm, createInputState } from './input/input';
 import { bindKeyboard } from './input/keyboard';
 import { bindTouchPad } from './input/touch';
 import { cameraFollow, createCamera } from './render/camera';
+import { createNpcSprites } from './render/npcSprites';
 import {
   clearBuffer,
   createScreen,
@@ -35,6 +40,22 @@ import {
   loadSave,
   serializePlayer,
 } from './save/persist';
+import {
+  advanceDialogue,
+  createDialogue,
+  drawDialogue,
+  openDialogue,
+  tickDialogue,
+} from './ui/dialogue';
+import { findBuildingInteract } from './village/buildings';
+import {
+  BUILDING_LINES,
+  facingTile,
+  nextNpcLines,
+  npcAt,
+  VILLAGE_NPCS,
+  type NpcProgress,
+} from './village/npcs';
 import { worldMap } from './world/map';
 
 const canvas = document.getElementById('game');
@@ -44,17 +65,45 @@ if (!(canvas instanceof HTMLCanvasElement)) {
 
 const pad = document.getElementById('dpad');
 const knob = document.getElementById('dpad-knob');
-if (!(pad instanceof HTMLElement) || !(knob instanceof HTMLElement)) {
-  throw new Error('#dpad elements not found');
+const talkEl = document.getElementById('btn-talk');
+if (
+  !(pad instanceof HTMLElement) ||
+  !(knob instanceof HTMLElement) ||
+  !(talkEl instanceof HTMLElement)
+) {
+  throw new Error('#dpad / #btn-talk elements not found');
 }
 const dpad = pad;
+const talkBtn = talkEl;
 
 const screen = createScreen(canvas);
 const camera = createCamera();
 const sprites = createSprites();
+const npcSprites = createNpcSprites();
 const input = createInputState();
+const dialogue = createDialogue();
+let npcProgress: NpcProgress = {};
+/** When true, Tom flashes the celebrate pose briefly after a gag. */
+let celebrateTimer = 0;
+
 bindKeyboard(input);
 bindTouchPad(dpad, knob, input);
+
+talkBtn.addEventListener(
+  'pointerdown',
+  (e) => {
+    e.preventDefault();
+    talkBtn.dataset.pressed = '1';
+    input.confirmPressed = true;
+  },
+  { passive: false },
+);
+const clearTalkPress = () => {
+  talkBtn.dataset.pressed = '0';
+};
+talkBtn.addEventListener('pointerup', clearTalkPress);
+talkBtn.addEventListener('pointercancel', clearTalkPress);
+talkBtn.addEventListener('pointerleave', clearTalkPress);
 
 const saved = loadSave(worldMap) ?? defaultSave();
 const player = createPlayer(saved.x, saved.y, saved.facing);
@@ -73,7 +122,82 @@ let fpsFrames = 0;
 let fpsElapsed = 0;
 let fpsDisplay = 0;
 
+function talkToNpc(npc: (typeof VILLAGE_NPCS)[number]): void {
+  const dx = player.tileX - npc.tileX;
+  const dy = player.tileY - npc.tileY;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    npc.facing = dx > 0 ? 'right' : 'left';
+  } else if (dy !== 0) {
+    npc.facing = dy > 0 ? 'down' : 'up';
+  }
+  const result = nextNpcLines(npc, npcProgress);
+  npcProgress = result.progress;
+  openDialogue(dialogue, result.lines);
+  celebrateTimer = 90;
+}
+
+function tryInteract(): void {
+  const front = facingTile(player.tileX, player.tileY, player.facing);
+
+  const faced = npcAt(VILLAGE_NPCS, front.x, front.y);
+  if (faced) {
+    talkToNpc(faced);
+    return;
+  }
+
+  // Forgiving PoC: talk if standing beside an NPC (auto-face them).
+  const neighbors: Array<{ x: number; y: number; facing: typeof player.facing }> =
+    [
+      { x: player.tileX, y: player.tileY - 1, facing: 'up' },
+      { x: player.tileX, y: player.tileY + 1, facing: 'down' },
+      { x: player.tileX - 1, y: player.tileY, facing: 'left' },
+      { x: player.tileX + 1, y: player.tileY, facing: 'right' },
+    ];
+  for (const n of neighbors) {
+    const npc = npcAt(VILLAGE_NPCS, n.x, n.y);
+    if (npc) {
+      player.facing = n.facing;
+      talkToNpc(npc);
+      return;
+    }
+  }
+
+  const building = findBuildingInteract(worldMap.buildings, front.x, front.y);
+  if (building) {
+    const lines = BUILDING_LINES[building.label];
+    if (lines) {
+      openDialogue(dialogue, lines);
+      return;
+    }
+  }
+
+  const here = findBuildingInteract(
+    worldMap.buildings,
+    player.tileX,
+    player.tileY,
+  );
+  if (here) {
+    const lines = BUILDING_LINES[here.label];
+    if (lines) openDialogue(dialogue, lines);
+  }
+}
+
 function update(_dt: number): void {
+  const confirmed = consumeConfirm(input);
+
+  if (dialogue.active) {
+    tickDialogue(dialogue);
+    if (confirmed) {
+      const closed = advanceDialogue(dialogue);
+      if (closed) celebrateTimer = Math.max(celebrateTimer, 45);
+    }
+    return;
+  }
+
+  if (confirmed) tryInteract();
+
+  if (celebrateTimer > 0) celebrateTimer -= 1;
+
   const { landed } = updatePlayer(player, input, worldMap);
   cameraFollow(camera, player.worldX, player.worldY);
   if (landed) save.schedule();
@@ -88,11 +212,64 @@ function drawFps(target: Screen): void {
   bufferCtx.fillText(`${fpsDisplay} FPS`, 4, 4);
 }
 
+function drawTitle(target: Screen): void {
+  const { bufferCtx } = target;
+  const y = DEBUG_FPS ? 24 : 6;
+  bufferCtx.fillStyle = 'rgba(0,0,0,0.35)';
+  bufferCtx.fillRect(4, y - 2, 140, 20);
+  bufferCtx.fillStyle = '#f0e8c0';
+  bufferCtx.font = 'bold 14px "Courier New", monospace';
+  bufferCtx.textBaseline = 'top';
+  bufferCtx.fillText("Tom's Village", 10, y);
+}
+
 function drawPlayer(): void {
   const { x, y } = playerDrawPos(player);
   const dx = Math.round(x - camera.x);
   const dy = Math.round(y - camera.y);
-  sprites.draw(screen.bufferCtx, player.facing, player.walkFrame, dx, dy);
+  if (dialogue.active) {
+    sprites.drawSpecial(screen.bufferCtx, 'talk', dx, dy);
+  } else if (celebrateTimer > 0 && celebrateTimer % 20 < 12) {
+    sprites.drawSpecial(screen.bufferCtx, 'celebrate', dx, dy);
+  } else {
+    sprites.draw(screen.bufferCtx, player.facing, player.walkFrame, dx, dy);
+  }
+}
+
+/** Y-sort Tom + NPCs for simple depth. */
+function drawActors(): void {
+  type Actor =
+    | { kind: 'player'; y: number }
+    | { kind: 'npc'; y: number; index: number };
+
+  const actors: Actor[] = [
+    { kind: 'player', y: player.tileY * TILE_SIZE + player.offsetY },
+  ];
+  VILLAGE_NPCS.forEach((npc, index) => {
+    actors.push({ kind: 'npc', y: npc.tileY * TILE_SIZE, index });
+  });
+  actors.sort((a, b) => a.y - b.y);
+
+  const drawW = NPC_SPRITE_WIDTH * NPC_DRAW_SCALE;
+
+  for (const a of actors) {
+    if (a.kind === 'player') {
+      drawPlayer();
+    } else {
+      const npc = VILLAGE_NPCS[a.index]!;
+      const x =
+        npc.tileX * TILE_SIZE + (TILE_SIZE - drawW) / 2 - camera.x;
+      const y = npc.tileY * TILE_SIZE - NPC_SPRITE_Y_OFFSET - camera.y;
+      npcSprites.draw(
+        screen.bufferCtx,
+        npc.palette,
+        npc.facing,
+        Math.round(x),
+        Math.round(y),
+        NPC_DRAW_SCALE,
+      );
+    }
+  }
 }
 
 function render(): void {
@@ -100,8 +277,10 @@ function render(): void {
   if (tileset?.ready) {
     tileset.tick(nowMs);
     drawWorld(screen.bufferCtx, worldMap, tileset, camera);
-    drawPlayer();
+    drawActors();
   }
+  drawTitle(screen);
+  drawDialogue(screen.bufferCtx, dialogue);
   drawFps(screen);
   present(screen);
 }
@@ -186,8 +365,10 @@ function bindResetGesture(): void {
       taps.length = 0;
       clearSave();
       save.cancel();
+      npcProgress = {};
       placePlayer(player, DEFAULT_SPAWN_X, DEFAULT_SPAWN_Y, DEFAULT_FACING);
       cameraFollow(camera, player.worldX, player.worldY);
+      celebrateTimer = 0;
     }
   };
 
@@ -196,14 +377,15 @@ function bindResetGesture(): void {
     (e) => {
       const t = e.changedTouches[0];
       if (!t) return;
-      // Don't steal d-pad releases.
       if (dpad.contains(e.target as Node)) return;
+      if (talkBtn.contains(e.target as Node)) return;
       onTap(t.clientX, t.clientY);
     },
     { passive: true },
   );
 
   window.addEventListener('click', (e) => {
+    if (talkBtn.contains(e.target as Node)) return;
     onTap(e.clientX, e.clientY);
   });
 }
@@ -222,3 +404,36 @@ createTileset()
   .catch((err) => {
     console.error(err);
   });
+
+// Dev/test probe (Playwright / console).
+(window as unknown as { __TOM__: unknown }).__TOM__ = {
+  get player() {
+    return {
+      x: player.tileX,
+      y: player.tileY,
+      facing: player.facing,
+      state: player.state,
+    };
+  },
+  get dialogue() {
+    return {
+      active: dialogue.active,
+      index: dialogue.index,
+      shown: dialogue.shown,
+      speaker: dialogue.queue[dialogue.index]?.speaker ?? null,
+      line: dialogue.queue[dialogue.index]?.text ?? null,
+    };
+  },
+  npcs: () =>
+    VILLAGE_NPCS.map((n) => ({
+      id: n.id,
+      x: n.tileX,
+      y: n.tileY,
+    })),
+  place: (x: number, y: number, facing: typeof player.facing) => {
+    placePlayer(player, x, y, facing);
+    cameraFollow(camera, player.worldX, player.worldY);
+  },
+  interact: () => tryInteract(),
+  advance: () => advanceDialogue(dialogue),
+};

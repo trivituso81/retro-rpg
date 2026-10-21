@@ -9,7 +9,11 @@ npm install
 npm run dev
 ```
 
-Open the local URL Vite prints. Desktop: **WASD / arrows** to walk, **Space / E / Enter** to talk. Mobile: on-screen D-pad + **TALK**.
+Open the local URL Vite prints.
+
+**Desktop:** WASD / arrows to walk, Space / E / Enter to talk.
+
+**iPhone:** Open in Safari (or Add to Home Screen for full-screen). Use the on-screen **D-pad** to walk and **TALK** / **NEXT** (or tap the screen) for dialogue. Safe-area aware for the home indicator / notch.
 
 ## PoC scope
 

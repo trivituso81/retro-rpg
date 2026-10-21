@@ -110,20 +110,24 @@ function wrapText(
   return lines;
 }
 
-const BOX_H = 96;
+const BOX_H = 104;
 const BOX_MARGIN = 12;
 const PAD = 12;
 
+/**
+ * @param bottomReserve Extra px to lift the box (mobile: clear thumb controls).
+ */
 export function drawDialogue(
   ctx: CanvasRenderingContext2D,
   state: DialogueState,
+  bottomReserve = 0,
 ): void {
   if (!state.active) return;
   const line = state.queue[state.index];
   if (!line) return;
 
   const x = BOX_MARGIN;
-  const y = INTERNAL_HEIGHT - BOX_H - BOX_MARGIN;
+  const y = INTERNAL_HEIGHT - BOX_H - BOX_MARGIN - bottomReserve;
   const w = INTERNAL_WIDTH - BOX_MARGIN * 2;
 
   // Outer shadow

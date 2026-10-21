@@ -26,6 +26,7 @@ import { createNpcSprites } from './render/npcSprites';
 import {
   clearBuffer,
   createScreen,
+  isTouchPrimary,
   present,
   resizeScreen,
   type Screen,
@@ -58,10 +59,11 @@ import {
 } from './village/npcs';
 import { worldMap } from './world/map';
 
-const canvas = document.getElementById('game');
-if (!(canvas instanceof HTMLCanvasElement)) {
+const canvasEl = document.getElementById('game');
+if (!(canvasEl instanceof HTMLCanvasElement)) {
   throw new Error('#game canvas not found');
 }
+const canvas = canvasEl;
 
 const pad = document.getElementById('dpad');
 const knob = document.getElementById('dpad-knob');
@@ -104,6 +106,49 @@ const clearTalkPress = () => {
 talkBtn.addEventListener('pointerup', clearTalkPress);
 talkBtn.addEventListener('pointercancel', clearTalkPress);
 talkBtn.addEventListener('pointerleave', clearTalkPress);
+
+/** Keep DOM chrome in sync with dialogue (iPhone NEXT bar, hide D-pad). */
+function syncDialogueChrome(): void {
+  const open = dialogue.active;
+  document.body.classList.toggle('dialogue-open', open);
+  talkBtn.textContent = open ? 'NEXT' : 'TALK';
+  talkBtn.setAttribute('aria-label', open ? 'Next' : 'Talk');
+}
+
+/** iOS Safari sometimes offsets visualViewport — pin it. */
+function pinIosViewport(): void {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  if (vv.offsetTop !== 0 || vv.offsetLeft !== 0) {
+    window.scrollTo(0, 0);
+  }
+}
+
+/** Tap the game canvas to talk / advance (handy on iPhone). */
+function bindCanvasTap(): void {
+  const onTap = (clientX: number, clientY: number, target: EventTarget | null) => {
+    if (target instanceof Node) {
+      if (dpad.contains(target) || talkBtn.contains(target)) return;
+    }
+    // Ignore top-right reset zone taps.
+    const w = window.visualViewport?.width ?? window.innerWidth;
+    if (clientX >= w - RESET_ZONE_SIZE && clientY <= RESET_ZONE_SIZE) return;
+    input.confirmPressed = true;
+  };
+
+  canvas.addEventListener(
+    'touchend',
+    (e) => {
+      const t = e.changedTouches[0];
+      if (!t) return;
+      // Don't steal multi-touch from the pad.
+      if (dpad.contains(e.target as Node)) return;
+      e.preventDefault();
+      onTap(t.clientX, t.clientY, e.target);
+    },
+    { passive: false },
+  );
+}
 
 const saved = loadSave(worldMap) ?? defaultSave();
 const player = createPlayer(saved.x, saved.y, saved.facing);
@@ -184,6 +229,7 @@ function tryInteract(): void {
 
 function update(_dt: number): void {
   const confirmed = consumeConfirm(input);
+  const wasOpen = dialogue.active;
 
   if (dialogue.active) {
     tickDialogue(dialogue);
@@ -191,10 +237,12 @@ function update(_dt: number): void {
       const closed = advanceDialogue(dialogue);
       if (closed) celebrateTimer = Math.max(celebrateTimer, 45);
     }
+    if (wasOpen !== dialogue.active) syncDialogueChrome();
     return;
   }
 
   if (confirmed) tryInteract();
+  if (wasOpen !== dialogue.active) syncDialogueChrome();
 
   if (celebrateTimer > 0) celebrateTimer -= 1;
 
@@ -280,7 +328,9 @@ function render(): void {
     drawActors();
   }
   drawTitle(screen);
-  drawDialogue(screen.bufferCtx, dialogue);
+  // Lift dialogue above thumb controls on iPhone / touch devices.
+  const reserve = isTouchPrimary() ? 72 : 0;
+  drawDialogue(screen.bufferCtx, dialogue, reserve);
   drawFps(screen);
   present(screen);
 }
@@ -392,8 +442,16 @@ function bindResetGesture(): void {
 
 bindResize();
 bindResetGesture();
+bindCanvasTap();
+syncDialogueChrome();
 document.addEventListener('visibilitychange', onVisibilityChange);
 window.addEventListener('pagehide', onPageHide);
+window.visualViewport?.addEventListener('resize', pinIosViewport);
+window.visualViewport?.addEventListener('scroll', pinIosViewport);
+window.addEventListener('orientationchange', () => {
+  pinIosViewport();
+  resizeScreen(screen);
+});
 
 requestAnimationFrame(frame);
 

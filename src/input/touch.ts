@@ -1,7 +1,8 @@
 import type { Facing } from '../config';
 import type { InputState } from './input';
 
-const DEAD_ZONE = 0.2; // 20% of radius
+/** Slightly forgiving for thumbs on glass. */
+const DEAD_ZONE = 0.16;
 
 function dirFromVector(dx: number, dy: number, radius: number): Facing | null {
   const dist = Math.hypot(dx, dy);
